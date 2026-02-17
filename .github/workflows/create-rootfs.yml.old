@@ -100,8 +100,7 @@ jobs:
 
       - name: Obter nome do repositório
         id: get-repo-name
-        #run: echo "repo_name=$(basename "$GITHUB_REPOSITORY")" >> "$GITHUB_OUTPUT"
-        run: echo "repo_name=${GITHUB_REPOSITORY##*/}" >> "$GITHUB_OUTPUT"
+        run: echo "repo_name=$(basename "$GITHUB_REPOSITORY")" >> "$GITHUB_OUTPUT"
 
       - name: Enviar notificação para o Telegram
         shell: bash
@@ -139,8 +138,7 @@ jobs:
     #needs: [get-time, set-repo-name] # Depende do job get-time para obter a hora atual e do job set-repo-name para obter o nome do repositório
     needs: [setup] # Espera o job "setup" terminar
     env:
-      #REPO_NAME: ${{ needs.set-repo-name.outputs.REPOSITORY_NAME }} # Acesso à variável de ambiente definida no job anterior
-      REPO_NAME: ${{ needs.setup.outputs.REPOSITORY_NAME }}
+      REPO_NAME: ${{ needs.set-repo-name.outputs.REPOSITORY_NAME }} # Acesso à variável de ambiente definida no job anterior
     container:
       #image: vcatafesta/voidlinux-docker:latest
       image: vcatafesta/voidlinux-docker:1.5  #seg 16 fev 2026 23:52:08 -04

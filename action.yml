@@ -1,6 +1,5 @@
 #  Altered: 2024/12/26 - 12:26
 #  Updated: ter 17 fev 2026 16:06:14 -04
-#  Version: 1.3.6
 #
 #  Copyright (c) 2024-2025, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -68,120 +67,13 @@ runs:
         cat << 'EOF' > /tmp/send_telegram_message.sh
         export TERM=${TERM:-xterm}
         export TERM=${TERM:-xterm-256color}
-
-        #Definindo variáveis de cores
-        export green="\033[01;32m"
-        export red="\033[01;31m"
-        export blue="\033[01;34m"
-        export cyan="\033[01;36m"
-        export pink="\033[01;35m"
-        export yellow="\033[01;33m"
-        export reset="\033[0m"
-        alias ls='ls -lha --color=auto'
-        alias dir='ls -lha --color=auto'
-
-        die() {
-          local msg="$1"
-          msg="$(sed 's/<[^>]*>//g' <<< "$msg")" # Remove as tags HTML
-          echo -e "BP=>${cyan}error: ${red}${msg}${reset}"
-          exit  1
-        }
-        export -f die
-
-        msg_raw() {
-          local msg="$1"
-          # Remove tags HTML, se existirem
-          #msg="$(sed 's/<[^>]*>//g' <<< "$msg")"
-
-          # Verifica se existe ':' na mensagem
-          if [[ "$msg" == *:* ]]; then
-            # Divide a string antes e depois do primeiro ':'
-            local before_colon="${msg%%:*}:"
-            local after_colon="${msg#*: }"
-            # Aplica as cores
-            msg="${cyan}${before_colon} ${yellow}${after_colon}${reset}"
-          else
-            # Se não houver ':', aplica apenas a cor padrão
-            msg="${cyan}${msg}${reset}"
-          fi
-          echo -e "$msg"
-        }
-        export -f msg_raw
-
-        msg() {
-          local msg="$1"
-          msg="$(sed 's/<[^>]*>//g' <<< "$msg")" # Remove as tags HTML
-          echo -e "BP=>${cyan}running: ${yellow}${msg}${reset}"
-        }
-        export -f msg
-
-        msg_ok() {
-          local msg="$1"
-          msg="$(sed 's/<[^>]*>//g' <<< "$msg")" # Remove as tags HTML
-          echo -e "BP=>${cyan}feito  : ${green}${msg}${reset}"
-        }
-        export -f msg_ok
-
-        msg_run() {
-          local msg="$1"
-          echo -e "BP=>${cyan}running: ${yellow}${msg}${reset}"
-
-          # Executa o comando e captura o código de saída
-          if ! eval "$msg"; then
-            echo -e "BP=>${red}Erro ao executar: ${yellow}${msg}${reset}" >&2
-            return 1
-          fi
-          return 0
-        }
-        export -f msg_run
-
-        msg_info() {
-          local msg="$1"
-          msg="$(sed 's/<[^>]*>//g' <<< "$msg")" # Remove as tags HTML
-          echo -e "BP=>${cyan}info   : ${yellow}${msg}${reset}"
-        }
-        export -f msg_info
-
-        msg_warning() {
-          local msg="$1"
-          msg="$(sed 's/<[^>]*>//g' <<< "$msg")" # Remove as tags HTML
-          echo -e "BP=>${red}warning: ${orange}${msg}${reset}"
-        }
-        export -f msg_warning
-
-        replicate() {
-          local char=${1:-'#'}
-          local nsize=${2:-$(tput cols)}
-          local line
-          #printf -v line "%*s" "$nsize" && echo "${line// /$char}"
-          #printf -v line "%*s" "$nsize" && echo -e "\033[31m${line// /$char}\033[0m"
-          printf -v line "%*s" "$nsize" && echo -e "${blue}${line// /$char}${reset}"
-        }
-        export -f replicate
-
-        send_telegram_message() {
-          local message="$1"
-          local parse_mode="$2"
-
-          # Define parse_mode como "MarkdownV2" se não for especificado
-          [[ -z $parse_mode ]] && parse_mode="HTML"
-
-          # Remove as tags HTML e exibe o resultado no terminal
-          echo -e "${green}$(sed 's/<[^>]*>//g' <<< "$message")${reset}"
-          # Envia a mensagem original com HTML para o Telegram
-          curl -s -X POST "https://api.telegram.org/bot${{ inputs.telegram_token }}/sendMessage" \
-            -d chat_id="${{ inputs.telegram_chat_id }}" \
-            -d message_thread_id="${{ inputs.telegram_message_thread_id }}" \
-            -d text="$message" \
-            -d parse_mode="$parse_mode"
-        }
+        ...
         export -f send_telegram_message
         EOF
 
     - name: Display the current user in CONTAINER
       shell: bash
       run: |
-        # Display the current user in CONTAINER
         source /tmp/send_telegram_message.sh
         replicate "#"
         msg_raw "Current host is     : $(hostname)"
@@ -197,7 +89,6 @@ runs:
     - name: Setup build environment
       shell: bash
       run: |
-        # Setup build environment
         source /tmp/send_telegram_message.sh
         {
         echo 'repository=https://void.voidbr.org/voidlinux/current'
@@ -214,36 +105,33 @@ runs:
         echo 'repository=https://repo-fastly.voidlinux.org/current/multilib/nonfree'
         } >> /etc/xbps.d/00-repository-main.conf
 
-        # atualizar e instalar pacotes adicionais
-        xbps-install -Sy -f \
-          tree \
-          duf > /dev/null
+        xbps-install -Sy -f tree duf > /dev/null
+
+    - name: Garantir REPO_NAME
+      shell: bash
+      run: |
+        echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> "$GITHUB_ENV"
 
     - name: Configurar o ambiente
       shell: bash
       run: |
-        WORK_PATH="${{ github.workspace }}"
-        PROFILE_PATH="${{ github.workspace }}/chili-void-mklive"
-        echo "WORK_PATH=$WORK_PATH"       >> "$GITHUB_ENV"
+        WORK_PATH="/__w/${{env.REPO_NAME}}/${{env.REPO_NAME}}"
+        PROFILE_PATH="/__w/${{env.REPO_NAME}}/${{env.REPO_NAME}}/chili-void-mklive"
+        echo "WORK_PATH=$WORK_PATH" >> "$GITHUB_ENV"
         echo "PROFILE_PATH=$PROFILE_PATH" >> "$GITHUB_ENV"
 
     - name: Checkout chili-void-mklive
       shell: bash
       run: |
-        #Checkout chili-void-mklive
         source /tmp/send_telegram_message.sh
         REPO="https://github.com/chililinux/chili-void-mklive"
         msg_raw "Repository: $REPO"
-
         rm -rf "$PROFILE_PATH" || true
         if ! git clone --depth 1 "$REPO" "$PROFILE_PATH"; then
           echo "Falha ao clonar o repositorio $REPO em $PROFILE_PATH"
           exit 1
         fi
-        # ativando 'git config --global --add safe.directory'
         git config --global --add safe.directory "$PROFILE_PATH" || true
-
-        # clean '/__t/' directory
         rm -rf /__t/* || true
 
     - name: Setup TMATE Session
@@ -258,65 +146,7 @@ runs:
       env:
         DEBUG: ${{ inputs.tmate }}
         DISTRONAME: ${{ inputs.name }}
-        EDITION: ${{ inputs.edition }}
-        MANJAROBRANCH: ${{ inputs.manjaro_branch }}
-        COMMUNITYBRANCH: ${{ inputs.community_branch }}
-        BIGBRANCH: ${{ inputs.biglinux_branch }}
-        SCOPE: ${{ inputs.scope }}
-        KERNEL: ${{ inputs.kernel }}
-        OFFICE: ${{ inputs.office-chooser }}
-        RELEASE_TAG: ${{ inputs.release_tag }}
-      run: |
-        # BUILD ISO Image
-        # Denine path for directory
-
-        source /tmp/send_telegram_message.sh
-
-        # Check if iso-profiles directory exists before proceeding
-        if [[ ! -d "$PROFILE_PATH" ]]; then
-          die "ERRO(L427): Diretório $PROFILE_PATH não localizado!"
-        fi
-
-        # listando diretório iso-profiles no diretório atual
-        msg_run "ls -lah $WORK_PATH"
-
-        build_mkroot_fs() {
-          replicate "######################### RESUMO #################################" 1
-          msg_raw "BUILD COMMAND            : ./mkrootfs --automatic"
-          msg_raw "PROFILE_PATH             : $PROFILE_PATH"
-          replicate "#"
-          msg_raw "WORK_PATH                : $WORK_PATH"
-          msg_raw "PROFILE_PATH             : $PROFILE_PATH"
-          msg_raw "ISO profiles path        : $PROFILE_PATH/$EDITION"
-          replicate "#"
-
-          pushd "$PROFILE_PATH" > /dev/null || true
-          [[ ${{ inputs.tmate }} == 'true' ]] && ./mkrootfs --automatic || ./mkrootfs --automatic > /dev/null
-          popd > /dev/null
-        }
-
-        cleanup_and_move_files() {
-          OUTPUT_ISO_PATH_NAME=$(find "$PROFILE_PATH" -type f -name "*.iso" -exec stat -c '%Y %n' {} + | sort -nr | awk 'NR==1 {print $2}')
-          OUTPUT_XZ_PATH_NAME=$(find "$PROFILE_PATH" -type f -name "*.tar.xz" -exec stat -c '%Y %n' {} + | sort -nr | awk 'NR==1 {print $2}')
-          ISO_BASENAME=$(basename "$OUTPUT_ISO_PATH_NAME")
-          XZ_BASENAME=$(basename "$OUTPUT_XZ_PATH_NAME")
-
-          echo "OUTPUT_ISO_PATH_NAME=$OUTPUT_ISO_PATH_NAME" >> "$GITHUB_ENV"
-          echo "OUTPUT_XZ_PATH_NAME=$OUTPUT_XZ_PATH_NAME" >> "$GITHUB_ENV"
-          echo "ISO_BASENAME=$ISO_BASENAME" >> "$GITHUB_ENV"
-          echo "XZ_BASENAME=$XZ_BASENAME" >> "$GITHUB_ENV"
-
-          if [[ -n "$OUTPUT_ISO_PATH_NAME" ]]; then
-            mv -fv "$OUTPUT_ISO_PATH_NAME" "$WORK_PATH/" || echo "ERRO: Falha ao mover arquivo ISO $OUTPUT_ISO_PATH_NAME"
-            echo "ISO_FULLNAME=$WORK_PATH/$ISO_BASENAME" >> "$GITHUB_ENV"
-          fi
-          if [[ -n "$OUTPUT_XZ_PATH_NAME"  ]]; then
-            mv -fv "$OUTPUT_XZ_PATH_NAME" "$WORK_PATH/"  || echo "ERRO: Falha ao mover arquivo XZ $OUTPUT_XZ_PATH_NAME"
-            echo "XZ_FULLNAME=$WORK_PATH/$XZ_BASENAME" >> "$GITHUB_ENV"
-          fi
-        }
-
-        build_mkroot_fs
+        ...
         cleanup_and_move_files
 
     - name: Extrair data do nome do arquivo .tar.xz e definir tag_name
@@ -330,6 +160,5 @@ runs:
     - name: Set ISO path
       shell: bash
       run: |
-        # Set outputs
         echo "iso_path=$WORK_PATH/$ISO_BASENAME" >> "$GITHUB_OUTPUT"
         echo "xz_path=$WORK_PATH/$XZ_BASENAME" >> "$GITHUB_OUTPUT"

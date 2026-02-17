@@ -35,6 +35,7 @@ on:
 
 env:
   GITHUB_TOKEN: "${{ secrets.ORGANIZATION_TOKEN }}"
+  MESSAGE_THREAD_ID: "${{ secrets.MESSAGE_THREAD_ID }}"
 
 # Jobs do workflow
 jobs:
@@ -153,6 +154,7 @@ jobs:
 
           # Tokens e segredos
           github_token: ${{ secrets.ORGANIZATION_TOKEN }}
+          message_thread_id: ${{ secrets.MESSAGE_THREAD_ID }}
 
       - name: Calculate MD5 Hash of files
         shell: bash

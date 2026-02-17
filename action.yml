@@ -58,6 +58,7 @@ runs:
       env:
         TELEGRAM_TOKEN: "${{ inputs.telegram_token }}"
         TELEGRAM_CHAT_ID: "${{ inputs.telegram_chat_id }}"
+        TELEGRAM_MESSAGE_THREAD_ID: "${{ inputs.telegram_message_thread_id }}"
       run: |
         #Definir a função send_telegram_message no script temporário
         cat << 'EOF' > /tmp/send_telegram_message.sh
@@ -166,6 +167,7 @@ runs:
           # Envia a mensagem original com HTML para o Telegram
           curl -s -X POST "https://api.telegram.org/bot${{ inputs.telegram_token }}/sendMessage" \
             -d chat_id="${{ inputs.telegram_chat_id }}" \
+            -d message_thread_id="${{ inputs.telegram_message_thread_id }}" \
             -d text="$message" \
             -d parse_mode="$parse_mode"
         }

@@ -324,7 +324,7 @@ jobs:
           pushd "${{ env.WORK_PATH }}/void-install"
           git config --global user.email "vctafesta@gmail.com"
           git config --global user.name "GitHub Actions"
-          git remote set-url origin https://x-access-token:${{ secrets.ORGANIZATION_TOKEN }}@github.com/voidlinux/void-install.git
+          git remote set-url origin https://x-access-token:${{ secrets.ORGANIZATION_TOKEN }}@github.com/voidlinuxbr/void-install.git
           popd
 
       - name: Fazer commit do arquivo .tar.gz

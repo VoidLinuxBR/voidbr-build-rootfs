@@ -117,7 +117,7 @@ jobs:
           <b>Job URL:</b> <a href='https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}'>${link_action}</a>
           <b>Workflow:</b> <code>build-rootfs-void/create-rootfs.yml</code>
           <b>Iniciado/Triggered:</b> <code>${started_by_user}/${triggered_by_user}</code>
-          <b>Inicio:</b> <code>${{ env.START_TIME }}</code>
+          <b>Inicio:</b> <code>${START_TIME}</code>
           <b>Distroname:</b> <code>${iso_distroname}</code>
           <b>Iso Profile:</b> <code>${{ github.event.client_payload.iso_profiles_repo || inputs.iso_profiles_repo }}</code>
           <b>Edition:</b> <code>${iso_edition}</code>

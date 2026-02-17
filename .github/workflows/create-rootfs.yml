@@ -79,7 +79,6 @@ jobs:
       time: ${{ steps.time.outputs.time }}
       REPOSITORY_NAME: ${{ steps.get-repo-name.outputs.repo_name }}
     steps:
-
       - name: Obter a hora atual
         id: time
         run: |

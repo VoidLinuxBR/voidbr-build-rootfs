@@ -70,6 +70,7 @@ env:
   DEBUG: "${{ github.event.client_payload.tmate || inputs.tmate || false }}"
   tmate: "${{ github.event.client_payload.tmate || inputs.tmate || false }}"
   iso_distroname: "${{ github.event.client_payload.distroname || inputs.distroname || 'voidBR' }}"
+  edition: "${{ github.event.client_payload.edition || inputs.edition || 'custom' }}"
 
 jobs:
   setup:
@@ -116,8 +117,7 @@ jobs:
           <b>Iniciado/Triggered:</b> <code>${started_by_user}/${triggered_by_user}</code>
           <b>Inicio:</b> <code>${START_TIME}</code>
           <b>Distroname:</b> <code>${iso_distroname}</code>
-          <b>Iso Profile:</b> <code>${{ github.event.client_payload.iso_profiles_repo || inputs.iso_profiles_repo }}</code>
-          <b>Edition:</b> <code>${iso_edition}</code>
+          <b>Edition:</b> <code>${edition}</code>
           <b>Build dir:</b> <code>${iso_build_dir}</code>
           <b>Release:</b> <code>${iso_release_tag}</code>
           <b>Kernel:</b> <code>${iso_kernel}</code>

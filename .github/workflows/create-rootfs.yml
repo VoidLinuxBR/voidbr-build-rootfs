@@ -215,7 +215,7 @@ jobs:
           msg_run "ls -lah ${{ env.WORK_PATH }}"
 
       - name: Upload FILES as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ZIP_BASENAME }}
           path: |

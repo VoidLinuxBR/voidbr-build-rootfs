@@ -115,8 +115,8 @@ jobs:
 
       - name: Install Required Libraries
         run: |
+          xbps-install -Syu -f xbps
           xbps-install -Syu -f \
-            xbps \
             xtools \
             bash \
             sudo \
@@ -129,7 +129,6 @@ jobs:
             which \
             vpm \
             libstdc++ \
-            vim \
             nano \
             curl \
             git \
@@ -302,18 +301,18 @@ jobs:
           asset_name: ${{ env.XZ_BASENAME }}
           asset_content_type: application/x-xz # Tipo correto para arquivos .xz
 
-      - name: Clonar repositório de destino https://github.com/voidlinux-br/void-installer.git
+      - name: Clonar repositório de destino https://github.com/voidlinuxbr/void-install.git
         shell: bash
         run: |
           pushd "${{ env.WORK_PATH }}"
-          git clone --depth=1 https://github.com/voidlinux-br/void-installer.git
+          git clone --depth=1 https://github.com/voidlinuxbr/void-install.git
           popd
 
       - name: Copiar arquivo .tar.gz para o repositório de destino
         shell: bash
         run: |
           ls -lha ${{ env.WORK_PATH }}
-          pushd "${{ env.WORK_PATH }}/void-installer"
+          pushd "${{ env.WORK_PATH }}/void-install"
           cp -fv "${{ env.XZ_FULLNAME }}"     void-x86_64-base-custom-current.tar.xz
           cp -fv "${{ env.XZ_FULLNAME }}.md5" void-x86_64-base-custom-current.tar.xz.md5
           sed -i 's/void-x86_64-base-custom-[0-9]\{8\}\.tar\.xz$/void-x86_64-base-custom-current.tar.xz/' void-x86_64-base-custom-current.tar.xz.md5
@@ -322,16 +321,16 @@ jobs:
       - name: Configurar Git para commit
         shell: bash
         run: |
-          pushd "${{ env.WORK_PATH }}/void-installer"
+          pushd "${{ env.WORK_PATH }}/void-install"
           git config --global user.email "vctafesta@gmail.com"
           git config --global user.name "GitHub Actions"
-          git remote set-url origin https://x-access-token:${{ secrets.ORGANIZATION_TOKEN }}@github.com/voidlinux-br/void-installer.git
+          git remote set-url origin https://x-access-token:${{ secrets.ORGANIZATION_TOKEN }}@github.com/voidlinux/void-install.git
           popd
 
       - name: Fazer commit do arquivo .tar.gz
         shell: bash
         run: |
-          pushd "${{ env.WORK_PATH }}/void-installer"
+          pushd "${{ env.WORK_PATH }}/void-install"
           ls -lha
           git add .
           git commit -m "Gerado e adicionado automaticamente pelo Github Actions"
@@ -341,6 +340,6 @@ jobs:
       - name: Empurrar mudanças para o repositório de destino
         shell: bash
         run: |
-          pushd "${{ env.WORK_PATH }}/void-installer"
+          pushd "${{ env.WORK_PATH }}/void-install"
           git push origin main
           popd

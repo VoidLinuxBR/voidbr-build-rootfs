@@ -70,17 +70,21 @@ env:
   DEBUG: "${{ github.event.client_payload.tmate || inputs.tmate || false }}"
   tmate: "${{ github.event.client_payload.tmate || inputs.tmate || false }}"
 
-# Jobs do workflow
+
+
 jobs:
-  # Job para obter a hora atual
-  get-time:
+  setup:
     runs-on: ubuntu-latest
     outputs:
       time: ${{ steps.time.outputs.time }} # Saída do job
+      REPOSITORY_NAME: ${{ steps.get-repo-name.outputs.repo_name }}
     steps:
       - name: Obter a hora atual
         id: time
-        run: echo "time=$(date +'%Y.%m.%d-%H%M')" >> "$GITHUB_OUTPUT"
+        run: |
+          #Obter a hora atual
+          #echo "::set-output name=time::$(date +'%Y.%m.%d-%H%M')"
+          echo "time=$(date +'%Y.%m.%d-%H%M')" >> $GITHUB_OUTPUT
 
       - name: Capturar hora de início do workflow
         id: start-time
@@ -94,12 +98,6 @@ jobs:
           echo "START_TIME='$START_TIME'"           >> shared_file.txt
           echo "START_TIMESTAMP='$START_TIMESTAMP'" >> shared_file.txt
 
-  # Job para definir o nome do repositório
-  set-repo-name:
-    runs-on: ubuntu-latest
-    outputs:
-      REPOSITORY_NAME: ${{ steps.get-repo-name.outputs.repo_name }}
-    steps:
       - name: Obter nome do repositório
         id: get-repo-name
         run: echo "repo_name=$(basename "$GITHUB_REPOSITORY")" >> "$GITHUB_OUTPUT"

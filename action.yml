@@ -268,7 +268,7 @@ runs:
 
         build_mkroot_fs() {
           replicate "######################### RESUMO #################################" 1
-          msg_raw "BUILD COMMAND            : ./mkrootfs"
+          msg_raw "BUILD COMMAND            : ./mkrootfs --automatic"
           msg_raw "PROFILE_PATH             : $PROFILE_PATH"
           replicate "#"
           msg_raw "WORK_PATH                : $WORK_PATH"
@@ -280,7 +280,7 @@ runs:
           replicate "#"
 
           pushd "$PROFILE_PATH" > /dev/null || true
-          [[ ${{ inputs.tmate }} == 'true' ]] && ./mkrootfs || ./mkrootfs > /dev/null
+          [[ ${{ inputs.tmate }} == 'true' ]] && ./mkrootfs --automatic || ./mkrootfs --automatic > /dev/null
           popd > /dev/null
         }
 

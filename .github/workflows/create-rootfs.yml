@@ -66,7 +66,8 @@ jobs:
     env:
       REPO_NAME: ${{ needs.set-repo-name.outputs.REPOSITORY_NAME }} # Acesso à variável de ambiente definida no job anterior
     container:
-      image: vcatafesta/voidlinux-docker:latest
+      #image: vcatafesta/voidlinux-docker:latest
+      image: vcatafesta/voidlinux-docker:1.5  #seg 16 fev 2026 23:52:08 -04
       options: --privileged
     #      volumes:
     #        - /mnt/var_lib_manjaro_tools_buildiso:/var/lib/manjaro-tools/buildiso

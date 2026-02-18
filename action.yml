@@ -191,6 +191,9 @@ runs:
         msg_raw "Current user is     : $(whoami)"
         msg_raw "Current user ID is  : $(id -u)"
         msg_raw "Current user details: $(id)"
+        msg_raw "Current path        : $(pwd)"
+        replicate "#"
+        duf -all || true
         replicate "#"
         df -hT || true
         replicate "#"

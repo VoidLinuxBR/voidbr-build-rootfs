@@ -139,12 +139,18 @@ jobs:
 
       - name: Capturar dados da Imagem
         run: |
-          # 1. Contar Pacotes do ROOTFS (usando -r para olhar dentro da imagem criada)
-          #PKG_COUNT=$(xbps-query -r "${{ env.WORK_PATH }}/base-custom" -l 2>/dev/null | wc -l || echo "0")
-          PKG_COUNT=$(xbps-query -r base-custom -l | wc -l || echo "0")
+          # O rootfs é construído dentro da pasta da edição (ex: base-custom)
+          TARGET_ROOT="${{ env.WORK_PATH }}/${{ env.edition }}"
+
+          # 1. Contar Pacotes do ROOTFS real
+          PKG_COUNT=$(xbps-query -r "$TARGET_ROOT" -l 2>/dev/null | wc -l || echo "0")
           echo "TOTAL_PACKAGES=${PKG_COUNT}" >> $GITHUB_ENV
 
-          # 32 Pega o kernel do container
+          # 2. Pega a versão do pacote linux instalado no rootfs real
+          K_VER=$(xbps-query -r "$TARGET_ROOT" -p version linux 2>/dev/null || echo "n/a")
+          echo "REAL_KERNEL=${K_VER}" >> $GITHUB_ENV
+
+          # 3. Pega o kernel do container
           K_CONTAINER=$(uname -a)
           echo "CONTAINER_KERNEL=${K_CONTAINER}" >> $GITHUB_ENV
 
@@ -230,7 +236,8 @@ jobs:
           <b>Job         :</b> <code>#${GITHUB_RUN_NUMBER}</code>
           <b>Job URL     :</b> <a href='${link_action}'>${link_action}</a>
           <b>Edition     :</b> <code>${edition}</code>
-          <b>Kernel      :</b> <code>x86_64/${CONTAINER_KERNEL}</code>
+          <b>Kernel      :</b> <code>x86_64/${{env.CONTAINER_KERNEL}}</code>
+          <b>Kernel      :</b> <code>x86_64/${{env.REAL_KERNEL}}</code>
           <b>Started     :</b> <code>${START_T}</code>
           <b>Duration    :</b> <code>${MIN}m ${SEC}s</code>
           <b>Status      :</b> <code>${STATUS}</code>

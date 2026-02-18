@@ -384,3 +384,29 @@ jobs:
           pushd "${{ env.WORK_PATH }}/void-install"
           git push origin main
           popd
+
+      - name: Enviar notificação final para o Telegram
+        if: always()
+        shell: bash
+        run: |
+          STATUS="${{ job.status }}"
+          if [[ "$STATUS" == "success" ]]; then
+            EMOJI="✅"
+            TEXT_STATUS="CONCLUÍDO COM SUCESSO"
+          else
+            EMOJI="❌"
+            TEXT_STATUS="FALHOU"
+          fi
+
+          link_action=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          MESSAGE="${EMOJI} <b>[step 3/3] build-rootfs-void - ${TEXT_STATUS}</b>
+          <b>Job:</b> <code>#${GITHUB_RUN_NUMBER}</code>
+          <b>Edition:</b> <code>${edition}</code>
+          <b>Status Final:</b> <code>${STATUS}</code>
+          <b>URL:</b> <a href='${link_action}'>Ver Detalhes</a>"
+
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+            -d chat_id="${CHAT_ID}" \
+            -d message_thread_id="${MESSAGE_THREAD_ID}" \
+            -d text="${MESSAGE}" \
+            -d parse_mode="HTML"

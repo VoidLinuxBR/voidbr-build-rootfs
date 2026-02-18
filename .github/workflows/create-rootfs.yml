@@ -92,7 +92,7 @@ jobs:
           <b>Started     :</b> <code>${START_TIME}</code>
           <b>Distroname  :</b> <code>${iso_distroname}</code>
           <b>Edition     :</b> <code>${edition}</code>
-          <b>Arch/Kernel :</b> <code>x86_64/${K_VER}</code>
+          <b>Arch/Kernel :</b> <code>x86_64/${KERNEL_VERSION}</code>
           <b>Tmate       :</b> <code>${{ env.DEBUG }}</code>
           <b>FileName    :</b> <code>${rootfs_name}</code>"
 

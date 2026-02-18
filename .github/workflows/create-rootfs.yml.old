@@ -1,0 +1,386 @@
+#  create-rootfs.yml
+#  Created: 2024/09/15 - 08:10
+#  Altered: ter 17 fev 2026 20:12:31 -04
+#
+#  Copyright (c) 2024-2026, Vilmar Catafesta <vcatafesta@gmail.com>
+#  All rights reserved.
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions
+#  are met:
+#  1. Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+#  2. Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AS IS'' AND ANY EXPRESS OR
+#  IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+#  OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+#  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+#  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+#  NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+#  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+#  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+#  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+#  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+##############################################################################
+name: Build ROOTFS VoidBR
+
+# Gatilhos para o workflow
+on:
+  push:
+    branches:
+      - main
+  repository_dispatch:
+    types:
+      - "ISO-*"
+  workflow_dispatch:
+    inputs:
+      name:
+        type: string
+        description: "Name for the ISO"
+        required: true
+        default: "voidlinux"
+      edition:
+        type: choice
+        description: "Edition"
+        options:
+          - base-minimal
+          - base-system
+          - base-voidstrap
+          - base-custom
+        default: "base-custom"
+      tmate:
+        type: boolean
+        description: "Enable debugging with tmate"
+        required: false
+        default: false
+
+  schedule:
+    #- cron: "0 22 * * 5" # Roda toda sexta-feira às 18:00 UTC-4
+    #- cron: "0 22 * * *" # Roda todo dia às 18:00 UTC-4
+    - cron: "0 7 * * *" # Roda todo dia às 03:00 UTC-4
+
+env:
+  TELEGRAM_TOKEN: "${{ secrets.TOKEN_BOT }}"
+  GITHUB_TOKEN: "${{ secrets.ORGANIZATION_TOKEN }}"
+  CHAT_ID: "${{ secrets.CHAT_ID }}"
+  MESSAGE_THREAD_ID: "${{ secrets.MESSAGE_THREAD_ID }}"
+  started_by_user: "${{ github.actor }}"
+  triggered_by_user: "${{ github.triggering_actor }}"
+  DEBUG: "${{ github.event.client_payload.tmate || inputs.tmate || false }}"
+  tmate: "${{ github.event.client_payload.tmate || inputs.tmate || false }}"
+  iso_distroname: "${{ github.event.client_payload.distroname || inputs.distroname || 'voidBR' }}"
+  edition: "${{ github.event.client_payload.edition || inputs.edition || 'custom' }}"
+  rootfs_name: "void-x86_64-base-${{ github.event.client_payload.edition || inputs.edition || 'custom' }}-current.tar.xz"
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      time: ${{ steps.time.outputs.time }} # Saída do job
+      REPOSITORY_NAME: ${{ steps.get-repo-name.outputs.repo_name }}
+    steps:
+      - name: Obter a hora atual
+        id: time
+        run: |
+          #Obter a hora atual
+          echo "time=$(date +'%Y.%m.%d-%H%M')" >> $GITHUB_OUTPUT
+
+      - name: Capturar hora de início do workflow
+        id: start-time
+        shell: bash
+        run: |
+          START_TIME=$(date +"%Y-%m-%d %H:%M:%S")  # Hora completa
+          START_TIMESTAMP=$(date +%s)  # Timestamp em segundos
+          echo "Início do Workflow: $START_TIME"
+          echo "START_TIME=$START_TIME"             >> $GITHUB_ENV
+          echo "START_TIMESTAMP=$START_TIMESTAMP"   >> $GITHUB_ENV
+          echo "START_TIME='$START_TIME'"           >> shared_file.txt
+          echo "START_TIMESTAMP='$START_TIMESTAMP'" >> shared_file.txt
+
+      - name: Obter nome do repositório
+        id: get-repo-name
+        run: echo "repo_name=$(basename "$GITHUB_REPOSITORY")" >> "$GITHUB_OUTPUT"
+
+      - name: Enviar notificação para o Telegram
+        shell: bash
+        run: |
+          #Enviar notificação para o Telegram
+          echo "ISO_BRANCH='$iso_branch'" >> GITHUB_ENV
+          echo "ISO_BRANCH='$iso_branch'" >> shared_file.txt
+          link_action=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+
+          MESSAGE="🚀 <b>[step 1/3] build-rootfs-void - INICIANDO WORKFLOW</b>
+          <b>Job:</b> <code>#${GITHUB_RUN_NUMBER}</code>
+          <b>Job URL:</b> <a href='https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}'>${link_action}</a>
+          <b>Workflow:</b> <code>build-rootfs-void/create-rootfs.yml</code>
+          <b>Iniciado/Triggered:</b> <code>${started_by_user}/${triggered_by_user}</code>
+          <b>Inicio:</b> <code>${START_TIME}</code>
+          <b>Distroname:</b> <code>${iso_distroname}</code>
+          <b>Edition:</b> <code>${edition}</code>
+          <b>Kernel:</b> <code>${iso_kernel}</code>
+          <b>Tmate:</b> <code>${{ env.DEBUG }}</code>
+          <b>ROOTFS Name:</b> <code>${rootfs_name}</code>"
+          # Remove as tags HTML e exibe o resultado no terminal
+          echo -e "${green}$(sed 's/<[^>]*>//g' <<< "$MESSAGE")${reset}"
+          # Envia a mensagem original com HTML para o Telegram
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+            -d chat_id="${CHAT_ID}" \
+            -d message_thread_id="${MESSAGE_THREAD_ID}" \
+            -d text="${MESSAGE}" \
+            -d parse_mode="HTML"
+
+  build:
+    name: Build void-x86_64-${{ github.event.client_payload.edition || 'base-custom' }}
+    runs-on: ubuntu-latest
+    #needs: [get-time, set-repo-name] # Depende do job get-time para obter a hora atual e do job set-repo-name para obter o nome do repositório
+    needs: [setup] # Espera o job "setup" terminar
+    env:
+      REPO_NAME: ${{ needs.set-repo-name.outputs.REPOSITORY_NAME }} # Acesso à variável de ambiente definida no job anterior
+    container:
+      #image: vcatafesta/voidlinux-docker:latest
+      image: vcatafesta/voidlinux-docker:1.5  #seg 16 fev 2026 23:52:08 -04
+      options: --privileged
+    #      volumes:
+    #        - /mnt/var_lib_manjaro_tools_buildiso:/var/lib/manjaro-tools/buildiso
+    #        - /mnt/var_cache_manjaro_tools_iso:/var/cache/manjaro-tools/iso
+
+    steps:
+      #      - name: Set up volume directory on HOST
+      #        run: |
+      #          mkdir -p /mnt/var_lib_manjaro_tools_buildiso
+      #          mkdir -p /mnt/var_cache_manjaro_tools_iso
+
+      - name: Install Required Libraries
+        run: |
+          xbps-install -Syu xbps
+          xbps-install -Syu \
+            xtools \
+            bash \
+            sudo \
+            openssh \
+            tmate \
+            xz \
+            zip \
+            kmod \
+            ncurses \
+            which \
+            vpm \
+            libstdc++ \
+            nano \
+            curl \
+            git \
+            bash \
+            tree \
+            duf
+
+      - name: Create user builduser
+        run: |
+          useradd -m -G wheel,audio,video,cdrom,optical,kvm,xbuilder builduser || true
+
+      - name: Display the current user in container
+        run: |
+          echo "#########################################"
+          echo "Current container is: $(hostname)"
+          echo "Current user is: $(whoami)"
+          echo "Current user ID is: $(id -u)"
+          echo "Current user details:"
+          id
+          echo "#########################################"
+          df -hT
+          echo "#########################################"
+          ls -la /mnt
+          echo "#########################################"
+
+      - name: Initial Debug
+        run: |
+          echo "Workflow started"
+          echo "Event Name: ${{ github.event_name }}"
+          echo "Event Action: ${{ github.event.action }}"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Build ROOTFS Void
+        uses: ./
+        id: build
+        with:
+          name: ${{ github.event.client_payload.name || inputs.name }}
+          #edition: ${{ github.event.client_payload.edition || inputs.edition }}
+          #release_tag: ${{ github.event.client_payload.release_tag || inputs.release_tag }}
+          #kernel: ${{ github.event.client_payload.kernel || inputs.kernel }}
+          #scope: ${{ github.event.client_payload.scope || inputs.scope }}
+          #office-chooser: ${{ github.event.client_payload.office-chooser || inputs.office-chooser }}
+
+          # Parâmetros de branches
+          #manjaro_branch: ${{ github.event.client_payload.manjaro_branch || inputs.manjaro_branch }}
+          #community_branch: ${{ github.event.client_payload.community_branch || inputs.community_branch }}
+          #biglinux_branch: ${{ github.event.client_payload.biglinux_branch || inputs.biglinux_branch }}
+
+          # Depuração
+          tmate: ${{ github.event.client_payload.tmate || 'false' }}
+
+          # Tokens e segredos
+          github_token: ${{ secrets.ORGANIZATION_TOKEN }}
+          message_thread_id: ${{ secrets.MESSAGE_THREAD_ID }}
+
+      - name: Calculate MD5 Hash of files
+        shell: bash
+        run: |
+          #Calculate MD5 Hash of files
+          source /tmp/send_telegram_message.sh
+
+          replicate "#"
+          msg_run "pushd ${{ env.WORK_PATH }}"
+          msg_raw "Calculating MD5 hash for: ${{ env.XZ_FULLNAME }} file..."
+          msg_raw "XZ_BASENAME is          : '${{ env.XZ_BASENAME }}'"
+
+          if [[ -f "${{ env.XZ_BASENAME }}" ]]; then
+            md5sum "${{ env.XZ_BASENAME }}" > "${{ env.XZ_BASENAME }}.md5"
+            msg_info "MD5 '$XZ_BASENAME.md5' hash calculated and saved:"
+            msg_run "cat ${{ env.XZ_BASENAME }}.md5"
+          else
+            die "ERRO: ${{ env.XZ_BASENAME }} file not found at ${{ env.WORK_PATH }}"
+          fi
+          msg_run "popd"
+
+      - name: Prepare ZIP file for release
+        id: prepare-iso
+        shell: bash
+        run: |
+          #Prepare ZIP file for release
+          source /tmp/send_telegram_message.sh
+          msg_run "ls -lha $PWD"
+          release=${{ env.XZ_BASENAME }} # Apenas obtém o nome do arquivo com extensão
+          release="${release%.tar.xz}"
+          echo "release_name=${release}" >> $GITHUB_ENV
+          if zip \
+              --junk-paths \
+              --store \
+              -s 2000m \
+              ${release}.zip \
+              ${{ env.XZ_FULLNAME }} \
+              ${{ env.XZ_FULLNAME }}.md5; then
+            echo "ZIP_FULLNAME=${{ env.WORK_PATH }}/${release}.zip" >> "$GITHUB_ENV"
+            echo "ZIP_BASENAME=${release}.zip"                      >> "$GITHUB_ENV"
+            echo "${ZIP_FULLNAME} prepared for release"
+            msg_run "ls -lha $PWD"
+          else
+            die "ERRO: No preparo do arquivo ZIP para release"
+          fi
+
+      - name: Debug environment variables and List Files
+        shell: bash
+        run: |
+          #Debug environment variables and List Files
+          source /tmp/send_telegram_message.sh
+          msg_raw "ISO_BASENAME         : ${{ env.ISO_BASENAME }}"
+          msg_raw "ISO_FULLNAME         : ${{ env.ISO_FULLNAME }}"
+          msg_raw "XZ_BASENAME          : ${{ env.XZ_BASENAME }}"
+          msg_raw "XZ_FULLNAME          : ${{ env.XZ_FULLNAME }}"
+          msg_raw "ZIP_BASENEM          : ${{ env.ZIP_BASENAME }}"
+          msg_raw "ZIP_FULLNAME         : ${{ env.ZIP_FULLNAME }}"
+          msg_raw "ISO Path from output : ${{ steps.define-paths.outputs.iso_path }}"
+          msg_raw "XZ Path from output  : ${{ steps.define-paths.outputs.xz_path }}"
+          msg_run "ls -lah ${{ env.WORK_PATH }}"
+
+      - name: Upload FILES as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ZIP_BASENAME }}
+          path: |
+            ${{ env.ZIP_FULLNAME }}
+            ${{ env.XZ_FULLNAME }}
+            ${{ env.XZ_FULLNAME }}.md5
+          if-no-files-found: warn
+          include-hidden-files: false
+
+      - name: Criar release zip
+        id: create_release_zip
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ github.run_id }}_zip
+          release_name: Release ${{ needs.get-time.outputs.time }}_zip
+          body: |
+            - **Data e Hora        :** ${{ needs.get-time.outputs.time }}
+            - **Nome do Repositório:** ${{ env.REPO_NAME }}
+          draft: false
+          prerelease: false
+
+      - name: Fazer upload do arquivo .zip no release
+        id: upload-release-asset-zip
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release_zip.outputs.upload_url }} # URL gerada no passo da criação da release
+          asset_path: ${{ env.ZIP_FULLNAME }} # Caminho do arquivo .zip
+          asset_name: ${{ env.REPO_NAME }}.zip
+          asset_content_type: application/zip # Tipo correto para arquivos .zip
+
+      - name: Criar release .tar.xz
+        id: create_release_xz
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ env.XZ_TAG_NAME }}
+          release_name: Release ${{ env.XZ_TAG_NAME }}
+          body: |
+            - **Data e Hora        :** ${{ needs.get-time.outputs.time }}
+            - **Nome do Repositório:** ${{ env.REPO_NAME }}
+          draft: false
+          prerelease: false
+
+      - name: Fazer upload do arquivo .tar.xz no release
+        id: upload-release-asset-tar-xz
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release_xz.outputs.upload_url }} # URL gerada no passo da criação da release
+          asset_path: ${{ env.XZ_FULLNAME }} # Caminho do arquivo .tar.xz
+          asset_name: ${{ env.XZ_BASENAME }}
+          asset_content_type: application/x-xz # Tipo correto para arquivos .xz
+
+      - name: Clonar repositório de destino https://github.com/voidlinuxbr/void-install.git
+        shell: bash
+        run: |
+          pushd "${{ env.WORK_PATH }}"
+          #git clone --depth=1 https://github.com/voidlinuxbr/void-install.git
+          git clone --depth=1 https://x-access-token:${{ secrets.ORGANIZATION_TOKEN }}@github.com/voidlinuxbr/void-install.git
+          popd
+
+      - name: Copiar arquivo .tar.gz para o repositório de destino
+        shell: bash
+        run: |
+          ls -lha ${{ env.WORK_PATH }}
+          pushd "${{ env.WORK_PATH }}/void-install"
+          cp -fv "${{ env.XZ_FULLNAME }}"     void-x86_64-base-custom-current.tar.xz
+          cp -fv "${{ env.XZ_FULLNAME }}.md5" void-x86_64-base-custom-current.tar.xz.md5
+          sed -i 's/void-x86_64-base-custom-[0-9]\{8\}\.tar\.xz$/void-x86_64-base-custom-current.tar.xz/' void-x86_64-base-custom-current.tar.xz.md5
+          popd
+
+      - name: Configurar Git para commit
+        shell: bash
+        run: |
+          pushd "${{ env.WORK_PATH }}/void-install"
+          git config --global user.email "vctafesta@gmail.com"
+          git config --global user.name "GitHub Actions"
+          git remote set-url origin https://x-access-token:${{ secrets.ORGANIZATION_TOKEN }}@github.com/voidlinuxbr/void-install.git
+          popd
+
+      - name: Fazer commit do arquivo .tar.gz
+        shell: bash
+        run: |
+          pushd "${{ env.WORK_PATH }}/void-install"
+          ls -lha
+          git add .
+          git commit -m "Gerado e adicionado automaticamente pelo Github Actions"
+          git status
+          popd
+
+      - name: Empurrar mudanças para o repositório de destino
+        shell: bash
+        run: |
+          pushd "${{ env.WORK_PATH }}/void-install"
+          git push origin main
+          popd

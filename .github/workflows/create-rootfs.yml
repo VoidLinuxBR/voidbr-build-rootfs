@@ -142,6 +142,13 @@ jobs:
           # O rootfs é construído dentro da pasta da edição (ex: base-custom)
           #TARGET_ROOT="${{ env.WORK_PATH }}/${{ env.edition }}"
           TARGET_ROOT="${{ env.PROFILE_PATH }}/${{ env.edition }}"
+          PKG_LIST_NAME="packages-${{ env.edition }}.txt"
+
+          # Gera a lista de pacotes
+          xbps-query -r "$TARGET_ROOT" -l | awk '{print $2}' > "${{ env.WORK_PATH }}/$PKG_LIST_NAME"
+
+          # Exporta o nome do arquivo para usar no link do Telegram
+          echo "PKG_LIST_FILE=$PKG_LIST_NAME" >> $GITHUB_ENV
 
           # 1. Contar Pacotes do ROOTFS real
           PKG_COUNT=$(xbps-query -r "$TARGET_ROOT" -l 2>/dev/null | wc -l || echo "0")
@@ -180,6 +187,7 @@ jobs:
           files: |
             ${{ env.XZ_FULLNAME }}
             ${{ env.WORK_PATH }}/${{ env.XZ_BASENAME }}.md5
+            ${{ env.WORK_PATH }}/packages-${{ env.edition }}.txt
           body: "Auto-generated build"
           draft: false
           prerelease: false
@@ -206,6 +214,7 @@ jobs:
         env:
           D_URL: "https://github.com/${{ github.repository }}/releases/download/${{ env.XZ_TAG_NAME }}/${{ env.XZ_BASENAME }}"
           FILE_NAME: ${{ env.XZ_BASENAME }}
+          PKG_FILE: ${{ env.PKG_LIST_FILE }}
           START_T: ${{ env.S_TIME_HUMAN }}
           START_TS: ${{ env.S_TIMESTAMP }}
         run: |
@@ -225,10 +234,12 @@ jobs:
             EMOJI="✅"
             TEXT_STATUS="CONCLUÍDO COM SUCESSO"
             DOWNLOAD_LINK="<a href='${D_URL}'>${FILE_NAME}</a>"
+            PACKAGES_LINK="<a href='${P_URL}'>${PKG_FILE}</a>"
           else
             EMOJI="❌"
             TEXT_STATUS="FALHOU"
             DOWNLOAD_LINK="N/A"
+            PACKAGES_LINK="N/A"
           fi
 
           link_action=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
@@ -246,7 +257,7 @@ jobs:
           <b>Download    :</b> ${DOWNLOAD_LINK}
           <b>Size        :</b> <code>${FILE_SIZE}</code>
           <b>Disk free   :</b> <code>${DISK_FREE}</code>
-          <b>Packages    :</b> <code>${TOTAL_PACKAGES}</code>"
+          <b>Packages    :</b> ${PACKAGES_LINK} (<code>${{ env.TOTAL_PACKAGES }}</code>)"
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
             -d chat_id="${CHAT_ID}" \

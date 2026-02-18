@@ -71,7 +71,7 @@ env:
   tmate: "${{ github.event.client_payload.tmate || inputs.tmate || false }}"
   iso_distroname: "${{ github.event.client_payload.distroname || inputs.distroname || 'voidBR' }}"
   edition: "${{ github.event.client_payload.edition || inputs.edition || 'custom' }}"
-  rootfs_release: "void-x86_64-${{ github.event.client_payload.edition || inputs.edition || 'custom' }}-current.tar.xz"
+  rootfs_name: "void-x86_64-${{ github.event.client_payload.edition || inputs.edition || 'custom' }}-current.tar.xz"
 jobs:
   setup:
     runs-on: ubuntu-latest

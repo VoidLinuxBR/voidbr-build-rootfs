@@ -79,11 +79,12 @@ jobs:
       - name: Pegar Versão do Kernel do Host (ubuntu)
         run: |
           KVER=$(uname -a)
-          echo "KERNEL_VERSION=${KVER}" >> $GITHUB_ENV
+          echo "KERNEL_HOST=${KVER}" >> $GITHUB_ENV
 
-      - name: Enviar notificação para o Telegram
+      - name: Enviar notificação inicial para o Telegram
         shell: bash
         run: |
+          # Enviar notificação inicial para o Telegram
           link_action=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
           MESSAGE="🚀 <b>[step 1/3] build-rootfs-void - INICIANDO WORKFLOW</b>
           <b>Job         :</b> <code>#${GITHUB_RUN_NUMBER}</code>
@@ -93,7 +94,7 @@ jobs:
           <b>Started     :</b> <code>${START_TIME}</code>
           <b>Distroname  :</b> <code>${iso_distroname}</code>
           <b>Edition     :</b> <code>${edition}</code>
-          <b>Kernel Host :</b> <code>x86_64/${KERNEL_VERSION}</code>
+          <b>Kernel Host :</b> <code>x86_64/${KERNEL_HOST}</code>
           <b>Tmate       :</b> <code>${{ env.DEBUG }}</code>
           <b>FileName    :</b> <code>${rootfs_name}</code>"
 
@@ -202,6 +203,7 @@ jobs:
           START_T: ${{ env.S_TIME_HUMAN }}
           START_TS: ${{ env.S_TIMESTAMP }}
         run: |
+          # Enviar notificação final para o Telegram
           END_TS=$(date +%s)
           DURATION=$((END_TS - START_TS))
           MIN=$((DURATION / 60))

@@ -135,10 +135,15 @@ jobs:
           github_token: ${{ secrets.ORGANIZATION_TOKEN }}
           message_thread_id: ${{ secrets.MESSAGE_THREAD_ID }}
 
-      - name: Contar Pacotes do ROOTFS
+      - name: Capturar dados da Imagem
         run: |
+          # Contar Pacotes do ROOTFS
           PKG_COUNT=$(xbps-query -r "${{ env.WORK_PATH }}/rootfs" -l | wc -l)
           echo "TOTAL_PACKAGES=${PKG_COUNT}" >> $GITHUB_ENV
+          # Pega a versão do pacote linux instalado no rootfs
+          # Usamos awk para pegar a versão limpa (ex: 6.6.15_1)
+          K_VER=$(xbps-query -r "${{ env.WORK_PATH }}/rootfs" -p version linux 2>/dev/null || echo "n/a")
+          echo "REAL_KERNEL=${K_VER}" >> $GITHUB_ENV
 
       - name: Calculate MD5 Hash
         shell: bash
@@ -218,17 +223,18 @@ jobs:
           link_action=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
           DISK_FREE=$(df -h / | awk 'NR==2 {print $4}')
           MESSAGE="${EMOJI} <b>[step 3/3] build-rootfs-void - ${TEXT_STATUS}</b>
-          <b>Job        :</b> <code>#${GITHUB_RUN_NUMBER}</code>
-          <b>Job URL    :</b> <a href='${link_action}'>${link_action}</a>
-          <b>Edition    :</b> <code>${edition}</code>
-          <b>Started    :</b> <code>${START_T}</code>
-          <b>Duration   :</b> <code>${MIN}m ${SEC}s</code>
-          <b>Status     :</b> <code>${STATUS}</code>
-          <b>Download   :</b> ${DOWNLOAD_LINK}
-          <b>Tamanho    :</b> <code>${FILE_SIZE}</code>
-          <b>MD5        :</b> <code>${{ env.MD5_VAL }}</code>
-          <b>Disk free  :</b> <code>${DISK_FREE}</code>
-          <b>Packages   :</b> <code>${TOTAL_PACKAGES}</code>"
+          <b>Job         :</b> <code>#${GITHUB_RUN_NUMBER}</code>
+          <b>Job URL     :</b> <a href='${link_action}'>${link_action}</a>
+          <b>Edition     :</b> <code>${edition}</code>
+          <b>Arch/Kernel :</b> <code>x86_64/${REAL_KERNEL}</code>
+          <b>Started     :</b> <code>${START_T}</code>
+          <b>Duration    :</b> <code>${MIN}m ${SEC}s</code>
+          <b>Status      :</b> <code>${STATUS}</code>
+          <b>Download    :</b> ${DOWNLOAD_LINK}
+          <b>Tamanho     :</b> <code>${FILE_SIZE}</code>
+          <b>MD5         :</b> <code>${{ env.MD5_VAL }}</code>
+          <b>Disk free   :</b> <code>${DISK_FREE}</code>
+          <b>Packages    :</b> <code>${TOTAL_PACKAGES}</code>"
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
             -d chat_id="${CHAT_ID}" \

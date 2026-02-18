@@ -58,7 +58,9 @@ on:
         default: false
 
   schedule:
-    - cron: "0 22 * * 5" # Roda toda sexta-feira às 18:00 UTC-4
+    #- cron: "0 22 * * 5" # Roda toda sexta-feira às 18:00 UTC-4
+    #- cron: "0 22 * * *" # Roda todo dia às 18:00 UTC-4
+    - cron: "0 7 * * *" # Roda todo dia às 03:00 UTC-4
 
 env:
   TELEGRAM_TOKEN: "${{ secrets.TOKEN_BOT }}"

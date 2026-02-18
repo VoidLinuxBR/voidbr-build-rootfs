@@ -140,6 +140,8 @@ jobs:
         run: |
           pushd "${{ env.WORK_PATH }}"
           md5sum "${{ env.XZ_BASENAME }}" > "${{ env.XZ_BASENAME }}.md5"
+          # Captura o hash e salva no GITHUB_ENV para uso posterior
+          echo "MD5_VAL=$(cut -d' ' -f1 "${{ env.XZ_BASENAME }}.md5")" >> $GITHUB_ENV
           popd
 
       - name: Prepare ZIP file for release
@@ -175,7 +177,7 @@ jobs:
           git config --global user.email "vctafesta@gmail.com"
           git config --global user.name "GitHub Actions"
           git add .
-          git commit -m "Auto Update ROOTFS"
+          git commit -m "Gerado e adicionado automaticamente pelo Github Actions"
           git push origin main
 
       - name: Enviar notificação final para o Telegram
@@ -209,7 +211,6 @@ jobs:
           fi
 
           link_action=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-
           MESSAGE="${EMOJI} <b>[step 3/3] build-rootfs-void - ${TEXT_STATUS}</b>
           <b>Job        :</b> <code>#${GITHUB_RUN_NUMBER}</code>
           <b>Job URL    :</b> <a href='${link_action}'>${link_action}</a>
@@ -219,7 +220,7 @@ jobs:
           <b>Status     :</b> <code>${STATUS}</code>
           <b>Download   :</b> ${DOWNLOAD_LINK}
           <b>Tamanho    :</b> <code>${FILE_SIZE}</code>
-          <b>URL        :</b> <a href='${link_action}'>Ver Detalhes</a>"
+          <b>MD5        :</b> <code>${{ env.MD5_VAL }}</code>"
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
             -d chat_id="${CHAT_ID}" \

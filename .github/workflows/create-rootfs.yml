@@ -75,6 +75,13 @@ jobs:
           echo "START_TIME='$START_TIME'"           >> shared_file.txt
           echo "START_TIMESTAMP='$START_TIMESTAMP'" >> shared_file.txt
 
+      - name: Pegar Versão do Kernel (Remoto)
+        id: get_k
+        run: |
+          # Pega a versão mais recente do repositório para informar no início
+          KVER=$(curl -s https://repo-default.voidlinux.org/current/x86_64-repodata | gunzip | grep -A 1 "pkgname: linux[0-9]" | grep "version:" | head -1 | awk '{print $2}')
+          echo "kver=${KVER}" >> $GITHUB_OUTPUT
+
       - name: Enviar notificação para o Telegram
         shell: bash
         run: |
@@ -87,7 +94,7 @@ jobs:
           <b>Started     :</b> <code>${START_TIME}</code>
           <b>Distroname  :</b> <code>${iso_distroname}</code>
           <b>Edition     :</b> <code>${edition}</code>
-          <b>Arch/Kernel :</b> <code>x86_64/${iso_kernel}</code>
+          <b>Arch/Kernel :</b> <code>x86_64/${{ steps.get_k.outputs.kver }}</code>
           <b>Tmate       :</b> <code>${{ env.DEBUG }}</code>
           <b>FileName    :</b> <code>${rootfs_name}</code>"
 

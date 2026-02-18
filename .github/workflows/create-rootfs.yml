@@ -211,6 +211,7 @@ jobs:
           fi
 
           link_action=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          DISK_FREE=$(df -h / | awk 'NR==2 {print $4}')
           MESSAGE="${EMOJI} <b>[step 3/3] build-rootfs-void - ${TEXT_STATUS}</b>
           <b>Job        :</b> <code>#${GITHUB_RUN_NUMBER}</code>
           <b>Job URL    :</b> <a href='${link_action}'>${link_action}</a>
@@ -220,7 +221,8 @@ jobs:
           <b>Status     :</b> <code>${STATUS}</code>
           <b>Download   :</b> ${DOWNLOAD_LINK}
           <b>Tamanho    :</b> <code>${FILE_SIZE}</code>
-          <b>MD5        :</b> <code>${{ env.MD5_VAL }}</code>"
+          <b>MD5        :</b> <code>${{ env.MD5_VAL }}</code>
+          <b>Disk free  :</b> <code>${DISK_FREE}</code>"
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
             -d chat_id="${CHAT_ID}" \

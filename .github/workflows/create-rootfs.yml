@@ -140,7 +140,8 @@ jobs:
       - name: Capturar dados da Imagem
         run: |
           # O rootfs é construído dentro da pasta da edição (ex: base-custom)
-          TARGET_ROOT="${{ env.WORK_PATH }}/${{ env.edition }}"
+          #TARGET_ROOT="${{ env.WORK_PATH }}/${{ env.edition }}"
+          TARGET_ROOT="${{ env.PROFILE_PATH }}/${{ env.edition }}"
 
           # 1. Contar Pacotes do ROOTFS real
           PKG_COUNT=$(xbps-query -r "$TARGET_ROOT" -l 2>/dev/null | wc -l || echo "0")

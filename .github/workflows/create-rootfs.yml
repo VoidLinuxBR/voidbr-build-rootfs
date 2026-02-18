@@ -412,10 +412,10 @@ jobs:
           <b>Job URL    :</b> <a href='https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}'>${link_action}</a>
           <b>Edition    :</b> <code>${edition}</code>
           <b>Inicio     :</b> <code>${START_TIME}</code>
-          <code>Duração : ${MIN}m ${SEC}s</code>
+          <b>Duração    :</b> <code>${MIN}m ${SEC}s</code>
           <b>Status     :</b> <code>${STATUS}</code>
-          ${DOWNLOAD_LINE}
           <b>URL        :</b> <a href='${link_action}'>Ver Detalhes</a>"
+          <b>Download   :</b> <code>${DOWNLOAD_LINE}</code>
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
             -d chat_id="${CHAT_ID}" \

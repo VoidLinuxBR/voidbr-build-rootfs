@@ -143,6 +143,9 @@ jobs:
           # 2. Pega a versão do pacote linux instalado no rootfs
           K_VER=$(xbps-query -r "${{ env.WORK_PATH }}/rootfs" -p version linux 2>/dev/null || echo "n/a")
           echo "REAL_KERNEL=${K_VER}" >> $GITHUB_ENV
+          # 3. Pega o kernel do container
+          K_CONTAINER=$(uname -a)
+          echo "CONTAINER_KERNEL=${K_CONTAINER}" >> $GITHUB_ENV
 
       - name: Calculate MD5 Hash
         shell: bash
@@ -225,6 +228,7 @@ jobs:
           <b>Job         :</b> <code>#${GITHUB_RUN_NUMBER}</code>
           <b>Job URL     :</b> <a href='${link_action}'>${link_action}</a>
           <b>Edition     :</b> <code>${edition}</code>
+          <b>Container   :</b> <code>x86_64/${CONTAINER_KERNEL}</code>
           <b>Arch/Kernel :</b> <code>x86_64/${REAL_KERNEL}</code>
           <b>Started     :</b> <code>${START_T}</code>
           <b>Duration    :</b> <code>${MIN}m ${SEC}s</code>

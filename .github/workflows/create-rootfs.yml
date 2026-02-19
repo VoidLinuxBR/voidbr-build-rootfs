@@ -201,12 +201,17 @@ jobs:
         id: create_gh_release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.XZ_TAG_NAME }}
+          #tag_name: ${{ env.XZ_TAG_NAME }}
+          tag_name: ${{ github.run_id }}_zip
+          release_name: Release ${{ needs.get-time.outputs.time }}_zip
           files: |
             ${{ env.XZ_FULLNAME }}
             ${{ env.WORK_PATH }}/${{ env.XZ_BASENAME }}.md5
             ${{ env.WORK_PATH }}/packages-${{ env.edition }}.txt
-          body: "Auto-generated build"
+          body: |
+            - **Data e Hora        :** ${{ needs.get-time.outputs.time }}
+            - **Nome do Repositório:** ${{ env.REPO_NAME }}
+            - Auto-generated build
           draft: false
           prerelease: false
         env:

@@ -99,7 +99,7 @@ jobs:
           <b>Tmate       :</b> <code>${{ env.DEBUG }}</code>
           <b>FileName    :</b> <code>${rootfs_name}</code>"
 
-          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_VOIDBR_ROOTFS_TOKEN_BOT/sendMessage" \
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_VOIDBR_ROOTFS_TOKEN_BOT}/sendMessage" \
             -d chat_id="${CHAT_ID}" \
             -d message_thread_id="${MESSAGE_THREAD_ID_ROOTFS}" \
             -d text="${MESSAGE}" \

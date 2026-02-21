@@ -19,9 +19,9 @@ on:
     inputs:
       name:
         type: string
-        description: "Name for the ISO"
+        description: "Name for the ROOTFS"
         required: true
-        default: "voidlinux"
+        default: "voidbr"
       edition:
         type: choice
         description: "Edition"

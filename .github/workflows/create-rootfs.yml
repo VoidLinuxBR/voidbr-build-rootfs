@@ -87,7 +87,7 @@ jobs:
         run: |
           # Enviar notificação inicial para o Telegram
           link_action=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-          MESSAGE="🚀 <b>[step 1/2] - INICIANDO WORKFLOW</b>
+          MESSAGE="${{ github.workflow }} 🚀   <b>[step 1/2] - INICIANDO WORKFLOW</b>
           <b>Job         :</b> <code>#${GITHUB_RUN_NUMBER}</code>
           <b>Job URL     :</b> <a href='${link_action}'>${link_action}</a>
           <b>Workflow    :</b> <code>${{ github.workflow }}</code>
@@ -269,7 +269,7 @@ jobs:
 
           link_action=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
           DISK_FREE=$(df -h / | awk 'NR==2 {print $4}')
-          MESSAGE="${EMOJI} <b>[step 2/2] - ${TEXT_STATUS}</b>
+          MESSAGE="${{ github.workflow }} ${EMOJI} <b>[step 2/2] - ${TEXT_STATUS}</b>
           <b>Job         :</b> <code>#${GITHUB_RUN_NUMBER}</code>
           <b>Job URL     :</b> <a href='${link_action}'>${link_action}</a>
           <b>Status      :</b> <code>${STATUS}</code>

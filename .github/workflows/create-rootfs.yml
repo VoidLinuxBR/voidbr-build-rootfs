@@ -185,6 +185,7 @@ jobs:
         run: |
           source /tmp/send_telegram_message.sh
           msg "- name: Enviar notificação inicial para o Telegram"
+          MESSAGE="🚀 <b>[step 1/2] - INICIANDO WORKFLOW</b>
           send_telegram_message "${MESSAGE}"
 
       - name: Install dependencies in HOST

@@ -59,11 +59,15 @@ jobs:
   setup:
     runs-on: ubuntu-latest
     outputs:
-      time: ${{ steps.time.outputs.time }}
+      time: ${{ steps.time.outputs.time }} # Saída do job
+      REPOSITORY_NAME: ${{ steps.get-repo-name.outputs.repo_name }}
     steps:
       - name: Obter a hora atual
         id: time
-        run: echo "time=$(date +'%Y.%m.%d-%H%M')" >> $GITHUB_OUTPUT
+        shell: bash
+        run: |
+          #Obter a hora atual
+          echo "time=$(date +'%Y.%m.%d-%H%M')" >> $GITHUB_OUTPUT
 
       - name: Capturar hora de início do workflow
         id: start-time
@@ -77,33 +81,156 @@ jobs:
           echo "START_TIME='$START_TIME'"           >> shared_file.txt
           echo "START_TIMESTAMP='$START_TIMESTAMP'" >> shared_file.txt
 
-      - name: Pegar Versão do Kernel do Host (ubuntu)
+      - name: Create Global Helpers Script - Definir a função send_telegram_message no script temporário
+        shell: bash
+        env:
+          TELEGRAM_TOKEN: "${{ inputs.telegram_token }}"
+          TELEGRAM_CHAT_ID: "${{ inputs.telegram_chat_id }}"
+          TELEGRAM_VOIDBR_ROOTFS_TOKEN_BOT: "${{ inputs.voidbr_rootfs_token_bot }}"
+          TELEGRAM_MESSAGE_THREAD_ID_ROOTFS: "${{ inputs.telegram_message_thread_id_rootfs }}"
         run: |
-          KVER=$(uname -a)
-          echo "KERNEL_HOST=${KVER}" >> $GITHUB_ENV
+          #Definir a função send_telegram_message no script temporário
+          sudo rm -rf /tmp/send_telegram_message.sh  # Remove se for diretório
+          cat << 'EOF' > /tmp/send_telegram_message.sh
+          export TERM=${TERM:-xterm}
+          export TERM=${TERM:-xterm-256color}
+
+          #Definindo variáveis de cores
+          export reset="\033[0m"
+          export rst="\033[0m"
+          export green="\033[01;32m"
+          export red="\033[01;31m"
+          export blue="\033[01;34m"
+          export cyan="\033[01;36m"
+          export pink="\033[01;35m"
+          export yellow="\033[01;33m"
+          alias ls='ls -lha --color=auto'
+          alias dir='ls -lha --color=auto'
+
+          msg() {
+            local msg="$1"
+            msg="$(sed 's/<[^>]*>//g' <<< "$msg")" # Remove as tags HTML
+            echo -e "BIV=>${cyan}running: ${yellow}${msg}${reset}"
+          }
+
+          msg_tab() {
+            local msg="$1"
+            msg="$(sed 's/<[^>]*>//g' <<< "$msg")" # Remove as tags HTML
+            echo -e "BIV=>${yellow}info   : ${cyan}${msg}${reset}"
+          }
+
+          msg_raw() {
+            local msg="$1"
+            msg="$(sed 's/<[^>]*>//g' <<< "$msg")" # Remove as tags HTML
+            echo -e "${cyan}${msg}${reset}"
+          }
+
+          msg_info() {
+            local msg="$1"
+            msg="$(sed 's/<[^>]*>//g' <<< "$msg")" # Remove as tags HTML
+            echo -e "BIV=>${yellow}info   : ${cyan}${msg}${reset}"
+          }
+
+          msg_warning() {
+            local msg="$1"
+            msg="$(sed 's/<[^>]*>//g' <<< "$msg")" # Remove as tags HTML
+            echo -e "BIV=>${red}warning: ${orange}${msg}${reset}"
+          }
+
+          replicate() {
+            local char=${1:-'#'}
+            local nsize=${2:-$(tput cols)}
+            local line
+            #printf -v line "%*s" "$nsize" && echo "${line// /$char}"
+            #printf -v line "%*s" "$nsize" && echo -e "\033[31m${line// /$char}\033[0m"
+            printf -v line "%*s" "$nsize" && echo -e "${blue}${line// /$char}${reset}"
+          }
+          export -f replicate
+
+          function send_telegram_message() {
+            local message="$1"
+            local parse_mode="$2"
+
+            # Define parse_mode como "MarkdownV2" se não for especificado
+            [[ -z $parse_mode ]] && parse_mode="HTML"
+
+            link_action=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+            MESSAGE="${{ github.workflow }} - $message
+            <b>Job         :</b> <code>#${GITHUB_RUN_NUMBER}</code>
+            <b>Job URL     :</b> <a href='${link_action}'>${link_action}</a>
+            <b>Workflow    :</b> <code>${{ github.workflow }}</code>
+            <b>Started/Triggered:</b> <code>${started_by_user}/${triggered_by_user}</code>
+            <b>Started     :</b> <code>${START_TIME}</code>
+            <b>Distroname  :</b> <code>${iso_distroname}</code>
+            <b>Edition     :</b> <code>${edition}</code>
+            <b>Kernel Host :</b> <code>x86_64/${KERNEL_HOST}</code>
+            <b>Tmate       :</b> <code>${{ env.DEBUG }}</code>
+            <b>FileName    :</b> <code>${rootfs_name}</code>"
+
+            # Remove as tags HTML e exibe o resultado no terminal
+            echo -e "${green}$(sed 's/<[^>]*>//g' <<< "$MESSAGE")${reset}"
+            # Envia a mensagem original com HTML para o Telegram
+            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_VOIDBR_ROOTFS_TOKEN_BOT}/sendMessage" \
+              -d chat_id="${CHAT_ID}" \
+              -d message_thread_id="${MESSAGE_THREAD_ID_ROOTFS}" \
+              -d text="${MESSAGE}" \
+              -d parse_mode="HTML"
+          }
+          export -f send_telegram_message
+          EOF
+          chmod +x /tmp/send_telegram_message.sh
 
       - name: Enviar notificação inicial para o Telegram
         shell: bash
         run: |
-          # Enviar notificação inicial para o Telegram
-          link_action=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-          MESSAGE="${{ github.workflow }} 🚀   <b>[step 1/2] - INICIANDO WORKFLOW</b>
-          <b>Job         :</b> <code>#${GITHUB_RUN_NUMBER}</code>
-          <b>Job URL     :</b> <a href='${link_action}'>${link_action}</a>
-          <b>Workflow    :</b> <code>${{ github.workflow }}</code>
-          <b>Started/Triggered:</b> <code>${started_by_user}/${triggered_by_user}</code>
-          <b>Started     :</b> <code>${START_TIME}</code>
-          <b>Distroname  :</b> <code>${iso_distroname}</code>
-          <b>Edition     :</b> <code>${edition}</code>
-          <b>Kernel Host :</b> <code>x86_64/${KERNEL_HOST}</code>
-          <b>Tmate       :</b> <code>${{ env.DEBUG }}</code>
-          <b>FileName    :</b> <code>${rootfs_name}</code>"
+          source /tmp/send_telegram_message.sh
+          msg "- name: Enviar notificação inicial para o Telegram"
+          send_telegram_msg "${MESSAGE}"
 
-          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_VOIDBR_ROOTFS_TOKEN_BOT}/sendMessage" \
-            -d chat_id="${CHAT_ID}" \
-            -d message_thread_id="${MESSAGE_THREAD_ID_ROOTFS}" \
-            -d text="${MESSAGE}" \
-            -d parse_mode="HTML"
+      - name: Install dependencies in HOST
+        shell: bash
+        run: |
+          source /tmp/send_telegram_message.sh
+          replicate
+          msg "-name: Install dependencies in HOST"
+          #sudo apt-get update
+          #sudo apt-get autoremove
+          #sudo apt-get install -y inetutils-tools duf tree tmate
+          sudo apt-get install -y inetutils-tools duf tree
+          replicate
+
+      #      - name: Setup TMATE Session in HOST
+      #        uses: mxschmitt/action-tmate@v3
+      #        shell: bash
+      #        with:
+      #          install-dependencies: false
+      #          detached: true
+
+      - name: Pegar Versão do Kernel do Host (ubuntu)
+        shell: bash
+        run: |
+          KVER=$(uname -a)
+          echo "KERNEL_HOST=${KVER}" >> $GITHUB_ENV
+
+      - name: Set up volume directory in HOST
+        shell: bash
+        run: |
+          #Set up volume directory in HOST
+          sudo mkdir -p /mnt/var_lib_manjaro_tools_buildiso
+          sudo mkdir -p /mnt/var_cache_manjaro_tools_iso
+          sudo mkdir -p /mnt/lfs
+
+      - name: Upload script as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: telegram-script
+          path: /tmp/send_telegram_message.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shared-file
+          path: shared_file.txt
 
   build:
     name: Build void-x86_64-${{ github.event.client_payload.edition || 'base-custom' }}
@@ -112,8 +239,23 @@ jobs:
     container:
       image: vcatafesta/voidlinux-docker:1.5
       options: --privileged
+      volumes:
+        - /mnt/var_lib_manjaro_tools_buildiso:/var/lib/manjaro-tools/buildiso
+        - /mnt/var_cache_manjaro_tools_iso:/var/cache/manjaro-tools/iso
+        - /mnt/lfs:/mnt/lfs
 
     steps:
+      - name: Download Telegram Script
+        uses: actions/download-artifact@v4
+        with:
+          name: telegram-script
+          path: /tmp/ # O download-artifact vai colocar o arquivo em /tmp/send_telegram_message.sh dentro do container
+
+      - name: Download artifact shared-file
+        uses: actions/download-artifact@v4
+        with:
+          name: shared-file
+
       - name: Capturar hora de início real
         run: |
           echo "S_TIME_HUMAN=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV

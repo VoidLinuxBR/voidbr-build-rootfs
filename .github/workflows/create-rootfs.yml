@@ -54,7 +54,8 @@ env:
   iso_distroname: "${{ github.event.client_payload.distroname || inputs.distroname || 'voidBR' }}"
   edition: "${{ github.event.client_payload.edition || inputs.edition || 'base-custom' }}"
   rootfs_name: "void-x86_64-${{ github.event.client_payload.edition || inputs.edition || 'base-custom' }}-current.tar.xz"
-  url_workflow: "${{ github.repository }}/blob/main/.github/workflows/create-rootfs.yml"
+  wf_url: "https://github.com/${{ github.repository }}/blob/main/.github/workflows/create-rootfs.yml"
+  wf_file: "create-rootfs.yml"
 
 jobs:
   setup:
@@ -198,10 +199,10 @@ jobs:
             [[ -z $parse_mode ]] && parse_mode="HTML"
 
             link_action=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-            MESSAGE="${{ github.workflow }} - $message
+            DOWNLOAD_LINK="<a href='${D_URL}'>${FILE_NAME}</a>"
             <b>Job           :</b> <code>#${GITHUB_RUN_NUMBER}</code>
             <b>Job URL       :</b> <a href='${link_action}'>${link_action}</a>
-            <b>Workflow file :</b> <a href='${url_workflow}'>${url_workflow}</a>
+            <b>Workflow file :</b> <a href='${wf_url}'>${wf_file}</a>
             <b>Triggered     :</b> <code>${started_by_user}/${triggered_by_user}</code>
             <b>Started       :</b> <code>${START_TIME}</code>
             <b>Distroname    :</b> <code>${iso_distroname}</code>

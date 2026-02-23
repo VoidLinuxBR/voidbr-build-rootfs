@@ -191,6 +191,21 @@ jobs:
           }
           export -f replicate
 
+          function send_telegram_msg() {
+            local message="$1"
+            local parse_mode="$2"
+
+            # Remove as tags HTML e exibe o resultado no terminal
+            echo -e "${green}$(sed 's/<[^>]*>//g' <<< "$MESSAGE")${reset}"
+            # Envia a mensagem original com HTML para o Telegram
+            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_VOIDBR_ROOTFS_TOKEN_BOT}/sendMessage" \
+              -d chat_id="${CHAT_ID}" \
+              -d message_thread_id="${MESSAGE_THREAD_ID_ROOTFS}" \
+              -d text="${MESSAGE}" \
+              -d parse_mode="HTML"
+          }
+          export -f send_telegram_msg
+
           function send_telegram_message() {
             local message="$1"
             local parse_mode="$2"
@@ -425,7 +440,9 @@ jobs:
           START_T: ${{ env.S_TIME_HUMAN }}
           START_TS: ${{ env.S_TIMESTAMP }}
         run: |
-          # Enviar notificação final para o Telegram
+          source /tmp/send_telegram_message.sh
+          replicate
+          msg 'Enviar notificação final para o Telegram'
           END_TS=$(date +%s)
           DURATION=$((END_TS - START_TS))
           MIN=$((DURATION / 60))
@@ -465,9 +482,5 @@ jobs:
           <b>Download      :</b> ${DOWNLOAD_LINK}
           <b>Size          :</b> <code>${FILE_SIZE}</code>
           <b>Packages      :</b> ${PACKAGES_LINK} (<code>${{ env.TOTAL_PACKAGES }}</code>)"
-
-          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_VOIDBR_ROOTFS_TOKEN_BOT}/sendMessage" \
-            -d chat_id="${CHAT_ID}" \
-            -d message_thread_id="${MESSAGE_THREAD_ID_ROOTFS}" \
-            -d text="${MESSAGE}" \
-            -d parse_mode="HTML"
+          send_telegram_msg "$MESSAGE"
+          replicate

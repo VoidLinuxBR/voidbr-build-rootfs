@@ -218,7 +218,8 @@ runs:
           replicate "#"
 
           pushd "$PROFILE_PATH" > /dev/null || true
-          [[ ${{ inputs.tmate }} == 'true' ]] && ./mkrootfs --automatic -v || ./mkrootfs --automatic -v > /dev/null
+          #[[ ${{ inputs.tmate }} == 'true' ]] && ./mkrootfs --automatic -v || ./mkrootfs --automatic > /dev/null
+          ./mkrootfs --automatic -v
           popd > /dev/null
         }
 

@@ -198,16 +198,16 @@ jobs:
 
             link_action=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
             MESSAGE="${{ github.workflow }} - $message
-            <b>Job         :</b> <code>#${GITHUB_RUN_NUMBER}</code>
-            <b>Job URL     :</b> <a href='${link_action}'>${link_action}</a>
-            <b>Workflow    :</b> <code>${{ github.workflow }}</code>
-            <b>Started/Triggered:</b> <code>${started_by_user}/${triggered_by_user}</code>
-            <b>Started     :</b> <code>${START_TIME}</code>
-            <b>Distroname  :</b> <code>${iso_distroname}</code>
-            <b>Edition     :</b> <code>${edition}</code>
-            <b>Kernel Host :</b> <code>x86_64/${KERNEL_HOST}</code>
-            <b>Tmate       :</b> <code>${{ env.DEBUG }}</code>
-            <b>FileName    :</b> <code>${rootfs_name}</code>"
+            <b>Job           :</b> <code>#${GITHUB_RUN_NUMBER}</code>
+            <b>Job URL       :</b> <a href='${link_action}'>${link_action}</a>
+            <b>Workflow file :</b> <code>create-rootfs.yml</code>
+            <b>Triggered     :</b> <code>${started_by_user}/${triggered_by_user}</code>
+            <b>Started       :</b> <code>${START_TIME}</code>
+            <b>Distroname    :</b> <code>${iso_distroname}</code>
+            <b>Edition       :</b> <code>${edition}</code>
+            <b>Kernel Host   :</b> <code>x86_64/${KERNEL_HOST}</code>
+            <b>Tmate         :</b> <code>${{ env.DEBUG }}</code>
+            <b>FileName      :</b> <code>${rootfs_name}</code>"
 
             # Remove as tags HTML e exibe o resultado no terminal
             echo -e "${green}$(sed 's/<[^>]*>//g' <<< "$MESSAGE")${reset}"
@@ -451,19 +451,20 @@ jobs:
           link_action=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
           DISK_FREE=$(df -h / | awk 'NR==2 {print $4}')
           MESSAGE="${{ github.workflow }} ${EMOJI} <b>[step 2/2] - ${TEXT_STATUS}</b>
-          <b>Job         :</b> <code>#${GITHUB_RUN_NUMBER}</code>
-          <b>Job URL     :</b> <a href='${link_action}'>${link_action}</a>
-          <b>Status      :</b> <code>${STATUS}</code>
-          <b>Started     :</b> <code>${START_T}</code>
-          <b>Started/Triggered:</b> <code>${started_by_user}/${triggered_by_user}</code>
-          <b>Edition     :</b> <code>${edition}</code>
-          <b>Kernel      :</b> <code>${{env.REAL_KERNEL}}</code>
-          <b>Duration    :</b> <code>${MIN}m ${SEC}s</code>
-          <b>MD5         :</b> <code>${{ env.MD5_VAL }}</code>
-          <b>Download    :</b> ${DOWNLOAD_LINK}
-          <b>Size        :</b> <code>${FILE_SIZE}</code>
-          <b>Disk free   :</b> <code>${DISK_FREE}</code>
-          <b>Packages    :</b> ${PACKAGES_LINK} (<code>${{ env.TOTAL_PACKAGES }}</code>)"
+          <b>Job           :</b> <code>#${GITHUB_RUN_NUMBER}</code>
+          <b>Job URL       :</b> <a href='${link_action}'>${link_action}</a>
+          <b>Workflow file :</b> <code>create-rootfs.yml</code>
+          <b>Status        :</b> <code>${STATUS}</code>
+          <b>Started       :</b> <code>${START_T}</code>
+          <b>Triggered     :</b> <code>${started_by_user}/${triggered_by_user}</code>
+          <b>Edition       :</b> <code>${edition}</code>
+          <b>Kernel        :</b> <code>${{env.REAL_KERNEL}}</code>
+          <b>Duration      :</b> <code>${MIN}m ${SEC}s</code>
+          <b>Disk free     :</b> <code>${DISK_FREE}</code>
+          <b>MD5           :</b> <code>${{ env.MD5_VAL }}</code>
+          <b>Download      :</b> ${DOWNLOAD_LINK}
+          <b>Size          :</b> <code>${FILE_SIZE}</code>
+          <b>Packages      :</b> ${PACKAGES_LINK} (<code>${{ env.TOTAL_PACKAGES }}</code>)"
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_VOIDBR_ROOTFS_TOKEN_BOT}/sendMessage" \
             -d chat_id="${CHAT_ID}" \

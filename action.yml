@@ -78,30 +78,65 @@ runs:
         ls -la /mnt || true
         replicate "#"
 
-    - name: Setup build environment - Install Required Libraries
+    - name: Install Required Packages and Libraries no CONTAINER
       shell: bash
       run: |
         source /tmp/send_telegram_message.sh
-        msg "- name: Setup build environment - Install Required Libraries"
         replicate
+        msg "- name: Install Required Packages and Libraries no CONTAINER"
         {
-        echo 'repository=https://void.voidbr.org/voidlinux/current'
-        echo 'repository=https://void.voidbr.org/voidlinux/extra'
-        echo 'repository=https://void.voidbr.org/voidlinux/current/nonfree'
-        echo 'repository=https://void.voidbr.org/voidlinux/current/multilib'
-        echo 'repository=https://void.voidbr.org/voidlinux/current/multilib/nonfree'
-        echo
-        echo 'repository=https://void.chililinux.com/voidlinux/current'
-        echo
-        echo 'repository=https://repo-fastly.voidlinux.org/current'
-        echo 'repository=https://repo-fastly.voidlinux.org/current/nonfree'
-        echo 'repository=https://repo-fastly.voidlinux.org/current/multilib'
-        echo 'repository=https://repo-fastly.voidlinux.org/current/multilib/nonfree'
-        } >> /etc/xbps.d/00-repository-main.conf
+          echo 'repository=https://void.voidbr.org/voidlinux/current'
+          echo 'repository=https://void.voidbr.org/voidlinux/extra'
+          echo 'repository=https://void.voidbr.org/voidlinux/current/nonfree'
+          echo 'repository=https://void.voidbr.org/voidlinux/current/multilib'
+          echo
+          echo 'repository=https://void.voidbr.org/voidlinux/current/multilib/nonfree'
+          echo 'repository=https://repo-fastly.voidlinux.org/current'
+          echo 'repository=https://repo-fastly.voidlinux.org/current/nonfree'
+          echo 'repository=https://repo-fastly.voidlinux.org/current/multilib'
+          echo 'repository=https://repo-fastly.voidlinux.org/current/multilib/nonfree'
+          echo
+          echo 'repository=https://void.chililinux.com/voidlinux/current'
+          echo
+          } > /etc/xbps.d/00-repository-main.conf
 
-        msg_info "atualizar e instalar pacotes adicionais"
-        xbps-install -Syu xbps || true
-        xbps-install -Syu xtools bash sudo openssh tmate xz zip kmod ncurses which vpm libstdc++ nano curl git tree duf || true
+          xbps-install -Syu
+          xbps-install -yu xbps
+          xbps-install -yu \
+            bash \
+            xtools \
+            sudo \
+            openssh \
+            tmate \
+            xz \
+            zip \
+            p7zip \
+            jq \
+            github-cli \
+            kmod \
+            which \
+            vpm \
+            libstdc++ \
+            nano \
+            curl \
+            git \
+            bash \
+            tree \
+            duf \
+            gettext \
+            rsync \
+            util-linux \
+            coreutils \
+            sed \
+            grep \
+            btrfs-progs \
+            e2fsprogs \
+            exfatprogs \
+            dosfstools \
+            xfsprogs
+          vinstall -Scc
+          xbps-install -Syu ncurses
+          replicate
 
     - name: Definir REPO_NAME
       shell: bash

@@ -199,7 +199,7 @@ jobs:
             [[ -z $parse_mode ]] && parse_mode="HTML"
 
             link_action=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-            DOWNLOAD_LINK="<a href='${D_URL}'>${FILE_NAME}</a>"
+            MESSAGE="${{ github.workflow }} - $message
             <b>Job           :</b> <code>#${GITHUB_RUN_NUMBER}</code>
             <b>Job URL       :</b> <a href='${link_action}'>${link_action}</a>
             <b>Workflow file :</b> <a href='${wf_url}'>${wf_file}</a>

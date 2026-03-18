@@ -117,10 +117,8 @@ runs:
           echo
           } > /etc/xbps.d/00-repository-main.conf
 
-          xbps-install -Syu
-          xbps-install -yu xbps
-          xbps-install -yu runit-void
-          xbps-install -yu \
+          xbps-install -Syu xbps
+          xbps-install -yu --ignore-file-conflicts \
             bash \
             xtools \
             sudo \

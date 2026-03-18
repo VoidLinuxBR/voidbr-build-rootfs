@@ -119,6 +119,7 @@ runs:
 
           xbps-install -Syu
           xbps-install -yu xbps
+          xbps-install -yu runit-void
           xbps-install -yu \
             bash \
             xtools \

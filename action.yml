@@ -156,7 +156,7 @@ runs:
           #  dosfstools \
           #  xfsprogs
           vinstall -Scc
-          xbps-install -Syu ncurses
+          xbps-install -u ncurses tmate
           replicate
 
     - name: Definir REPO_NAME

@@ -141,7 +141,7 @@ runs:
           xbps-install -yu --ignore-file-conflicts \
             tar \
             xz \
-            coreutils \ # chroot
+            coreutils \
             dialog \
             gettext \
             curl \

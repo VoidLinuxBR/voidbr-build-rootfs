@@ -24,22 +24,13 @@
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ##############################################################################
-# Action composta chamada pelo job "build" de create-rootfs.yml (via
-# "uses: ./"). É aqui que o container Void Linux de fato instala as
-# ferramentas, clona o profile de build, roda o mkrootfs.sh e organiza
-# os arquivos gerados para as etapas seguintes do workflow.
 name: "Build rootfs VoidBR"
 description: "Builds a tarball rootfs image for VoidBR"
 
-# Parâmetros que quem chama esta action pode/deve passar via "with:".
 inputs:
   name:
     description: "Name for the ISO"
     required: true
-  edition:
-    description: "Edition (base-minimal, base-system, base-voidstrap, base-custom)"
-    required: false
-    default: "base-custom"
   tmate:
     description: "Enable debugging with tmate"
     required: false
@@ -54,7 +45,6 @@ inputs:
     description: "Telegram message thread id rootfs"
     required: false
 
-# Valores que esta action expõe para quem a chamou, via "steps.build.outputs.*".
 outputs:
   iso_path:
     description: "Path to the generated ISO file"
@@ -69,9 +59,6 @@ outputs:
 runs:
   using: "composite"
   steps:
-    # Dump de depuração: mostra o evento completo do GitHub que disparou o
-    # workflow (útil pra investigar payloads de repository_dispatch) e
-    # confirma qual edição/tmate foram recebidos.
     - name: Initial Debug in CONTAINER
       env:
         EVENT_JSON: ${{ toJson(github.event) }}
@@ -89,9 +76,6 @@ runs:
         printf '%s\n' "$EVENT_JSON"
         replicate
 
-    # Mostra informações básicas do ambiente dentro do container (usuário,
-    # host, espaço em disco, montagens) — útil pra depurar problemas de
-    # permissão/espaço antes de começar o build de fato.
     - name: Display the current user in CONTAINER
       shell: bash
       run: |
@@ -111,10 +95,6 @@ runs:
         ls -la /mnt || true
         replicate "#"
 
-    # Configura os repositórios XBPS (mirrors VoidBR + oficial Fastly +
-    # ChiliLinux) e instala, dentro do próprio container, todas as
-    # ferramentas necessárias para o mkrootfs.sh rodar (git, curl, zip,
-    # ferramentas de partição/filesystem, etc.).
     - name: Install Required Packages and Libraries no CONTAINER
       shell: bash
       run: |
@@ -133,57 +113,57 @@ runs:
           echo 'repository=https://repo-fastly.voidlinux.org/current/multilib'
           echo 'repository=https://repo-fastly.voidlinux.org/current/multilib/nonfree'
           echo
-          echo 'repository=https://void.chililinux.com/voidlinux/current'
+          echo 'repository=https://void.chililinux.com/voidlinux/extra'
+          echo
+          echo 'repository=https://void.voidlinux.com.br/voidlinux/current'
+          echo 'repository=https://void.voidlinux.com.br/voidlinux/extra'
+          echo 'repository=https://void.voidlinux.com.br/voidlinux/current/nonfree'
+          echo 'repository=https://void.voidlinux.com.br/voidlinux/current/multilib'
           echo
           } > /etc/xbps.d/00-repository-main.conf
 
           xbps-install -Syu xbps
-          xbps-install -yu --ignore-file-conflicts \
-            bash \
-            xtools \
-            sudo \
-            openssh \
-            tmate \
-            xz \
-            zip \
-            p7zip \
-            jq \
-            github-cli \
-            kmod \
-            which \
-            vpm \
-            libstdc++ \
-            nano \
-            curl \
-            git \
-            bash \
-            tree \
-            duf \
-            gettext \
-            rsync \
-            util-linux \
-            coreutils \
-            sed \
-            grep \
-            btrfs-progs \
-            e2fsprogs \
-            exfatprogs \
-            dosfstools \
-            xfsprogs
+          #xbps-install -yu --ignore-file-conflicts \
+          #  bash \
+          #  xtools \
+          #  sudo \
+          #  openssh \
+          #  tmate \
+          #  xz \
+          #  zip \
+          #  p7zip \
+          #  jq \
+          #  github-cli \
+          #  kmod \
+          #  which \
+          #  vpm \
+          #  libstdc++ \
+          #  nano \
+          #  curl \
+          #  git \
+          #  bash \
+          #  tree \
+          #  duf \
+          #  gettext \
+          #  rsync \
+          #  util-linux \
+          #  coreutils \
+          #  sed \
+          #  grep \
+          #  btrfs-progs \
+          #  e2fsprogs \
+          #  exfatprogs \
+          #  dosfstools \
+          #  xfsprogs
           vinstall -Scc
-          xbps-install -Syu ncurses
+          xbps-install -u ncurses tmate
           replicate
 
-    # Extrai o nome do repositório (ex.: "voidbr-build-rootfs") a partir de
-    # $GITHUB_REPOSITORY, usado a seguir para montar os caminhos de trabalho.
     - name: Definir REPO_NAME
       shell: bash
       run: |
         echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> "$GITHUB_ENV"
 
-    # Define os dois diretórios principais usados no resto do build:
-    # WORK_PATH (workspace do runner) e PROFILE_PATH (onde o
-    # chili-void-mklive, com o mkrootfs.sh, vai ser clonado).
     - name: Configurar o ambiente
       shell: bash
       run: |
@@ -192,9 +172,6 @@ runs:
         echo "WORK_PATH=$WORK_PATH"       >> "$GITHUB_ENV"
         echo "PROFILE_PATH=$PROFILE_PATH" >> "$GITHUB_ENV"
 
-    # Clona o repositório chili-void-mklive (onde vive o mkrootfs.sh e as
-    # chaves XBPS) para dentro de PROFILE_PATH — é esse o profile de build
-    # compartilhado entre ChiliLinux e VoidBR.
     - name: Checkout chili-void-mklive
       shell: bash
       run: |
@@ -214,9 +191,6 @@ runs:
         # clean '/__t/' directory
         rm -rf /__t/* || true
 
-    # Abre uma sessão de debug remoto (tmate) dentro do container, só quando
-    # o build foi disparado com a opção "tmate" habilitada — permite entrar
-    # via SSH pra investigar problemas ao vivo.
     - name: Setup TMATE Session
       uses: mxschmitt/action-tmate@v3
       if: ${{ github.event.client_payload.tmate == true || inputs.tmate == true}}
@@ -224,12 +198,6 @@ runs:
         install-dependencies: false
         detached: true
 
-    # A etapa principal: monta os argumentos do mkrootfs.sh (usa "-b
-    # $EDITION" quando uma edição específica foi escolhida; "base-custom",
-    # o padrão, deixa o mkrootfs.sh usar o SYSPKG padrão dele mesmo), roda o
-    # build de fato, e depois localiza/move o tarball .tar.xz gerado para
-    # WORK_PATH (a busca por .iso é resíduo de um pipeline irmão que gera
-    # ISO completa — aqui sempre fica vazia).
     - name: Build ROOTFS tarball
       shell: bash
       env:
@@ -257,17 +225,9 @@ runs:
         # listando diretório iso-profiles no diretório atual
         msg_run "ls -lah $WORK_PATH"
 
-        # Roda o mkrootfs.sh de fato, dentro de PROFILE_PATH. --automatic
-        # evita qualquer prompt interativo (ex.: seleção de mirror); -v deixa
-        # a saída verbosa. -b "$EDITION" só é adicionado quando a edição
-        # escolhida não é a padrão (base-custom).
         build_mkroot_fs() {
           replicate "######################### RESUMO #################################" 1
-          mkrootfs_args=(--automatic -v)
-          if [[ -n "$EDITION" && "$EDITION" != "base-custom" ]]; then
-            mkrootfs_args+=(-b "$EDITION")
-          fi
-          msg_raw "BUILD COMMAND            : ./mkrootfs ${mkrootfs_args[*]}"
+          msg_raw "BUILD COMMAND            : ./mkrootfs --automatic -v"
           msg_raw "PROFILE_PATH             : $PROFILE_PATH"
           replicate "#"
           msg_raw "WORK_PATH                : $WORK_PATH"
@@ -280,13 +240,10 @@ runs:
 
           pushd "$PROFILE_PATH" > /dev/null || true
           #[[ ${{ inputs.tmate }} == 'true' ]] && ./mkrootfs --automatic -v || ./mkrootfs --automatic > /dev/null
-          ./mkrootfs "${mkrootfs_args[@]}"
+          ./mkrootfs --automatic -v
           popd > /dev/null
         }
 
-        # Localiza o arquivo mais recente (.iso e/ou .tar.xz) gerado dentro
-        # de PROFILE_PATH e move para WORK_PATH, exportando os nomes via
-        # GITHUB_ENV para os steps seguintes consumirem.
         cleanup_and_move_files() {
           OUTPUT_ISO_PATH_NAME=$(find "$PROFILE_PATH" -type f -name "*.iso" -exec stat -c '%Y %n' {} + | sort -nr | awk 'NR==1 {print $2}')
           OUTPUT_XZ_PATH_NAME=$(find "$PROFILE_PATH" -type f -name "*.tar.xz" -exec stat -c '%Y %n' {} + | sort -nr | awk 'NR==1 {print $2}')
@@ -311,9 +268,6 @@ runs:
         build_mkroot_fs
         cleanup_and_move_files
 
-    # Calcula XZ_TAG_NAME a partir da data embutida no nome do tarball (uso
-    # histórico; hoje a tag real da release em create-rootfs.yml é baseada
-    # em github.run_id, não nesta variável).
     - name: Extrair data do nome do arquivo .tar.xz e definir tag_name
       id: set-tag-name
       shell: bash
@@ -322,8 +276,6 @@ runs:
         TAG_NAME=$(echo "$FILENAME" | grep -oP '\d{8}')-$(date +%H%M)
         echo "XZ_TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
 
-    # Publica os outputs desta action (iso_path/xz_path) para quem a chamou
-    # poder consumir via steps.build.outputs.*.
     - name: Set ISO path
       shell: bash
       run: |

@@ -8,11 +8,6 @@
 ##############################################################################
 name: Build ROOTFS VoidBR
 
-# Gatilhos que disparam este workflow:
-# - push na branch main
-# - repository_dispatch vindo de outro repo/workflow (eventos "ISO-*")
-# - disparo manual pela interface do GitHub Actions (workflow_dispatch)
-# - agendado, todo dia às 07:00 UTC (cron)
 on:
   push:
     branches:
@@ -45,10 +40,6 @@ on:
   schedule:
     - cron: "0 7 * * *"
 
-# Variáveis de ambiente disponíveis em todos os jobs/steps deste workflow.
-# Inclui credenciais do Telegram/GitHub (vindas de secrets) e metadados do
-# build (edição, nome do rootfs, links do próprio workflow) resolvidos a
-# partir do disparo manual (inputs) ou do repository_dispatch (client_payload).
 env:
   TELEGRAM_TOKEN: "${{ secrets.TOKEN_BOT }}"
   TELEGRAM_VOIDBR_ROOTFS_TOKEN_BOT: "${{ secrets.VOIDBR_ROOTFS_TOKEN_BOT }}"
@@ -67,17 +58,12 @@ env:
   wf_file: "create-rootfs.yml"
 
 jobs:
-  # Job preparatório: roda num runner Ubuntu comum (fora do container Void).
-  # Calcula horários de referência, monta o script auxiliar de notificação
-  # do Telegram (funções de log/mensagem compartilhadas) e o disponibiliza
-  # como artifact para o job "build" consumir depois.
   setup:
     runs-on: ubuntu-latest
     outputs:
       time: ${{ steps.time.outputs.time }} # Saída do job
       REPOSITORY_NAME: ${{ steps.get-repo-name.outputs.repo_name }}
     steps:
-      # Gera o timestamp (YYYY.MM.DD-HHMM) usado depois no nome/corpo da release.
       - name: Obter a hora atual
         id: time
         shell: bash
@@ -85,8 +71,6 @@ jobs:
           #Obter a hora atual
           echo "time=$(date +'%Y.%m.%d-%H%M')" >> $GITHUB_OUTPUT
 
-      # Registra o horário de início do workflow como um todo (data completa
-      # e timestamp em segundos), usado depois para calcular a duração total.
       - name: Capturar hora de início do workflow
         id: start-time
         shell: bash
@@ -99,11 +83,6 @@ jobs:
           echo "START_TIME='$START_TIME'"           >> shared_file.txt
           echo "START_TIMESTAMP='$START_TIMESTAMP'" >> shared_file.txt
 
-      # Monta, em /tmp/send_telegram_message.sh, um script bash com funções
-      # reutilizáveis (cores no terminal, helpers de log como msg/msg_ok/die,
-      # e as funções send_telegram_msg/send_telegram_message que fazem o
-      # POST de fato para a API do Telegram). Esse arquivo é depois subido
-      # como artifact e "source"ado em vários steps/jobs seguintes.
       - name: Create Global Helpers Script - Definir a função send_telegram_message no script temporário
         shell: bash
         env:
@@ -130,7 +109,6 @@ jobs:
           alias ls='ls -lha --color=auto'
           alias dir='ls -lha --color=auto'
 
-          # die: imprime a mensagem de erro (sem tags HTML) e aborta o step atual.
           die() {
             local msg="$1"
             msg="$(sed 's/<[^>]*>//g' <<< "$msg")" # Remove as tags HTML
@@ -139,22 +117,18 @@ jobs:
           }
           export -f die
 
-          # msg: imprime uma mensagem de "executando" no log.
           msg() {
             local msg="$1"
             msg="$(sed 's/<[^>]*>//g' <<< "$msg")" # Remove as tags HTML
             echo -e "BIV=>${cyan}running: ${yellow}${msg}${reset}"
           }
 
-          # msg_tab: imprime uma mensagem de "info" indentada.
           msg_tab() {
             local msg="$1"
             msg="$(sed 's/<[^>]*>//g' <<< "$msg")" # Remove as tags HTML
             echo -e "BIV=>${yellow}info   : ${cyan}${msg}${reset}"
           }
 
-          # msg_raw: imprime "chave: valor" colorido (se houver ':' na mensagem,
-          # colore a parte antes e depois dele separadamente).
           msg_raw() {
             local msg="$1"
             # Remove tags HTML, se existirem
@@ -175,7 +149,6 @@ jobs:
           }
           export -f msg_raw
 
-          # msg_ok: imprime uma mensagem de sucesso/"feito".
           msg_ok() {
             local msg="$1"
             msg="$(sed 's/<[^>]*>//g' <<< "$msg")" # Remove as tags HTML
@@ -183,7 +156,6 @@ jobs:
           }
           export -f msg_ok
 
-          # msg_run: imprime o comando, executa via eval e reporta sucesso/falha.
           msg_run() {
             local msg="$1"
             echo -e "BP=>${cyan}running: ${yellow}${msg}${reset}"
@@ -197,22 +169,18 @@ jobs:
           }
           export -f msg_run
 
-          # msg_info: variante de mensagem informativa (mesmo formato de msg_tab).
           msg_info() {
             local msg="$1"
             msg="$(sed 's/<[^>]*>//g' <<< "$msg")" # Remove as tags HTML
             echo -e "BIV=>${yellow}info   : ${cyan}${msg}${reset}"
           }
 
-          # msg_warning: imprime uma mensagem de aviso.
           msg_warning() {
             local msg="$1"
             msg="$(sed 's/<[^>]*>//g' <<< "$msg")" # Remove as tags HTML
             echo -e "BIV=>${red}warning: ${orange}${msg}${reset}"
           }
 
-          # replicate: imprime uma linha separadora (repete um caractere até
-          # preencher a largura do terminal, ou o tamanho informado).
           replicate() {
             local char=${1:-'#'}
             local nsize=${2:-$(tput cols)}
@@ -223,8 +191,6 @@ jobs:
           }
           export -f replicate
 
-          # send_telegram_msg: envia para o Telegram o texto exato passado
-          # (usado na notificação final, que já vem pronta em $MESSAGE).
           function send_telegram_msg() {
             local message="$1"
             local parse_mode="$2"
@@ -240,9 +206,6 @@ jobs:
           }
           export -f send_telegram_msg
 
-          # send_telegram_message: monta uma mensagem padrão (com job, link do
-          # workflow, quem disparou, edição, etc.) em volta do texto recebido
-          # e envia para o Telegram. Usada na notificação inicial ("iniciando").
           function send_telegram_message() {
             local message="$1"
             local parse_mode="$2"
@@ -275,7 +238,6 @@ jobs:
           EOF
           chmod +x /tmp/send_telegram_message.sh
 
-      # Avisa no Telegram que o workflow começou a rodar (mensagem "step 1/2").
       - name: Enviar notificação inicial para o Telegram
         shell: bash
         run: |
@@ -284,8 +246,6 @@ jobs:
           MESSAGE="🚀 <b>[step 1/2] - INICIANDO WORKFLOW</b>"
           send_telegram_message "${MESSAGE}"
 
-      # Instala no runner Ubuntu (host) ferramentas usadas pelos steps
-      # seguintes que ainda rodam fora do container Void (duf, tree, etc.).
       - name: Install dependencies in HOST
         shell: bash
         run: |
@@ -305,17 +265,12 @@ jobs:
       #          install-dependencies: false
       #          detached: true
 
-      # Só registra a versão do kernel do runner Ubuntu (host), pra referência
-      # nos logs/notificações — não é o kernel que vai dentro da rootfs.
       - name: Pegar Versão do Kernel do Host (ubuntu)
         shell: bash
         run: |
           KVER=$(uname -a)
           echo "KERNEL_HOST=${KVER}" >> $GITHUB_ENV
 
-      # Cria no host os diretórios que serão montados como volumes dentro do
-      # container Void no job "build" — servem de cache persistente entre
-      # execuções (evita rebaixar tudo do zero a cada run).
       - name: Set up volume directory in HOST
         shell: bash
         run: |
@@ -324,26 +279,18 @@ jobs:
           sudo mkdir -p /mnt/var_cache_manjaro_tools_iso
           sudo mkdir -p /mnt/lfs
 
-      # Disponibiliza o script de funções de notificação (gerado acima) como
-      # artifact, para o job "build" baixar (jobs diferentes não compartilham
-      # sistema de arquivos automaticamente).
       - name: Upload script as artifact
         uses: actions/upload-artifact@v4
         with:
           name: telegram-script
           path: /tmp/send_telegram_message.sh
 
-      # Sobe o shared_file.txt (horário de início) como artifact.
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: shared-file
           path: shared_file.txt
 
-  # Job principal: roda dentro de um container Void Linux (--privileged, pois
-  # o mkrootfs precisa de chroot/bind-mount/binfmt_misc). Aqui de fato a
-  # rootfs é construída, empacotada, publicada como release no GitHub, e o
-  # resultado é notificado no Telegram.
   build:
     name: Build void-x86_64-${{ github.event.client_payload.edition || 'base-custom' }}
     runs-on: ubuntu-latest
@@ -358,51 +305,36 @@ jobs:
         - /mnt/lfs:/mnt/lfs
 
     steps:
-      # Traz de volta, dentro do container, o script de funções de
-      # notificação gerado no job "setup".
       - name: Download Telegram Script
         uses: actions/download-artifact@v4
         with:
           name: telegram-script
           path: /tmp/ # O download-artifact vai colocar o arquivo em /tmp/send_telegram_message.sh dentro do container
 
-      # Baixa de volta o shared_file.txt (hoje não é lido por nenhum step).
       - name: Download artifact shared-file
         uses: actions/download-artifact@v4
         with:
           name: shared-file
 
-      # Marca o horário de início específico deste job "build" — usado depois
-      # para calcular a duração exibida na notificação final do Telegram.
       - name: Capturar hora de início real
         run: |
           echo "S_TIME_HUMAN=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
           echo "S_TIMESTAMP=$(date +%s)" >> $GITHUB_ENV
 
-      # Faz checkout deste próprio repositório (onde estão o action.yml e o
-      # mkrootfs.sh que serão usados no step seguinte).
       - name: Checkout repository (voidbr-build-rootfs)
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      # Chama a action composta local (action.yml) que efetivamente builda a
-      # rootfs — clona o chili-void-mklive, instala pacotes, roda o
-      # mkrootfs.sh e move o tarball resultante para $WORK_PATH.
       - name: Build ROOTFS Void
         uses: ./
         id: build
         with:
           name: ${{ github.event.client_payload.name || inputs.name }}
-          edition: ${{ env.edition }}
           tmate: ${{ github.event.client_payload.tmate || 'false' }}
           github_token: ${{ secrets.ORGANIZATION_TOKEN }}
           message_thread_id_rootfs: ${{ secrets.MESSAGE_THREAD_ID_ROOTFS }}
 
-      # Consulta o banco do xbps dentro da rootfs recém-gerada para extrair:
-      # a lista de pacotes instalados, a contagem total, a versão do kernel
-      # linux empacotado, e a versão do kernel do próprio container — tudo
-      # usado depois na release e na notificação final.
       - name: Capturar dados da tarball rootfs gerado
         run: |
           # O rootfs é construído dentro da pasta da edição (ex: base-custom)
@@ -428,8 +360,6 @@ jobs:
           K_CONTAINER=$(uname -a)
           echo "CONTAINER_KERNEL=${K_CONTAINER}" >> $GITHUB_ENV
 
-      # Calcula o hash MD5 do tarball gerado, usado para conferência de
-      # integridade por quem for baixar o release.
       - name: Calculate MD5 Hash
         shell: bash
         run: |
@@ -439,9 +369,6 @@ jobs:
           echo "MD5_VAL=$(cut -d' ' -f1 "${{ env.XZ_BASENAME }}.md5")" >> $GITHUB_ENV
           popd
 
-      # Empacota tarball + md5 + lista de pacotes num .zip (sem compressão,
-      # "--store", já que o .tar.xz já vem comprimido) — o limite "-s 2000m"
-      # existe por causa do tamanho máximo de asset do GitHub Releases.
       - name: Prepare ZIP file for release
         id: prepare-iso
         shell: bash
@@ -468,21 +395,19 @@ jobs:
             die "ERRO: No preparo do arquivo ZIP para release"
           fi
 
-      # Cria a release no GitHub (tag baseada no run_id, sempre única) e sobe
-      # o tarball, o .md5 e a lista de pacotes como assets.
       - name: Criar Release e Upload Asset
         id: create_gh_release
         uses: softprops/action-gh-release@v2
         with:
           #tag_name: ${{ env.XZ_TAG_NAME }}
           tag_name: ${{ github.run_id }}_zip
-          release_name: Release ${{ needs.setup.outputs.time }}_zip
+          release_name: Release ${{ needs.get-time.outputs.time }}_zip
           files: |
             ${{ env.XZ_FULLNAME }}
             ${{ env.WORK_PATH }}/${{ env.XZ_BASENAME }}.md5
             ${{ env.WORK_PATH }}/packages-${{ env.edition }}.txt
           body: |
-            - **Data e Hora        :** ${{ needs.setup.outputs.time }}
+            - **Data e Hora        :** ${{ needs.get-time.outputs.time }}
             - **Nome do Repositório:** ${{ env.REPO_NAME }}
             - Auto-generated build
           draft: false
@@ -490,9 +415,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.ORGANIZATION_TOKEN }}
 
-      # Clona o repositório voidlinuxbr/void-install, substitui o rootfs
-      # "current" por este build recém-gerado, e faz commit/push — é assim
-      # que o instalador do VoidBR passa a distribuir a rootfs mais nova.
       - name: Atualizar repositório void-install
         shell: bash
         run: |
@@ -507,16 +429,12 @@ jobs:
           git commit -m "Gerado e adicionado automaticamente pelo Github Actions"
           git push origin main
 
-      # Monta e envia o resumo final para o Telegram (sucesso/falha, duração,
-      # espaço em disco, links de download, contagem de pacotes). Roda sempre
-      # ("if: always()"), mesmo que alguma etapa anterior tenha falhado, pra
-      # garantir que o time seja avisado do resultado de qualquer jeito.
       - name: Enviar notificação final para o Telegram
         if: always()
         shell: bash
         env:
-          D_URL: "https://github.com/${{ github.repository }}/releases/download/${{ github.run_id }}_zip/${{ env.XZ_BASENAME }}"
-          P_URL: "https://github.com/${{ github.repository }}/releases/download/${{ github.run_id }}_zip/${{ env.PKG_LIST_FILE }}"
+          D_URL: "https://github.com/${{ github.repository }}/releases/download/${{ env.XZ_TAG_NAME }}/${{ env.XZ_BASENAME }}"
+          P_URL: "https://github.com/${{ github.repository }}/releases/download/${{ env.XZ_TAG_NAME }}/${{ env.PKG_LIST_FILE }}"
           FILE_NAME: ${{ env.XZ_BASENAME }}
           PKG_FILE: ${{ env.PKG_LIST_FILE }}
           START_T: ${{ env.S_TIME_HUMAN }}

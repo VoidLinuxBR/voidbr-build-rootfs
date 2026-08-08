@@ -138,40 +138,48 @@ runs:
           } > /etc/xbps.d/00-repository-main.conf
 
           xbps-install -Syu xbps
-          xbps-install -yu --ignore-file-conflicts \
-            bash \
-            xtools \
-            sudo \
-            openssh \
-            tmate \
+          #xbps-install -yu --ignore-file-conflicts \
+            tar \
             xz \
-            zip \
-            p7zip \
-            jq \
-            github-cli \
-            kmod \
-            which \
-            vpm \
-            libstdc++ \
-            nano \
-            curl \
-            git \
-            bash \
-            tree \
-            duf \
+            chroot \
+            dialog \
             gettext \
-            rsync \
-            util-linux \
-            coreutils \
-            sed \
-            grep \
-            btrfs-progs \
-            e2fsprogs \
-            exfatprogs \
-            dosfstools \
-            xfsprogs
+            curl \
+            sed
+
+          #  bash \
+          #  xtools \
+          #  sudo \
+          #  openssh \
+          #  tmate \
+          #  xz \
+          #  zip \
+          #  p7zip \
+          #  jq \
+          #  github-cli \
+          #  kmod \
+          #  which \
+          #  vpm \
+          #  libstdc++ \
+          #  nano \
+          #  curl \
+          #  git \
+          #  bash \
+          #  tree \
+          #  duf \
+          #  gettext \
+          #  rsync \
+          #  util-linux \
+          #  coreutils \
+          #  sed \
+          #  grep \
+          #  btrfs-progs \
+          #  e2fsprogs \
+          #  exfatprogs \
+          #  dosfstools \
+          #  xfsprogs
           vinstall -Scc
-          xbps-install -Syu ncurses
+          xbps-install -yu ncurses
           replicate
 
     # Extrai o nome do repositório (ex.: "voidbr-build-rootfs") a partir de
@@ -263,7 +271,7 @@ runs:
         # escolhida não é a padrão (base-custom).
         build_mkroot_fs() {
           replicate "######################### RESUMO #################################" 1
-          mkrootfs_args=(--automatic -v)
+          mkrootfs_args=(--automatic -q)
           if [[ -n "$EDITION" && "$EDITION" != "base-custom" ]]; then
             mkrootfs_args+=(-b "$EDITION")
           fi

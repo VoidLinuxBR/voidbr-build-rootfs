@@ -113,7 +113,12 @@ runs:
           echo 'repository=https://repo-fastly.voidlinux.org/current/multilib'
           echo 'repository=https://repo-fastly.voidlinux.org/current/multilib/nonfree'
           echo
-          echo 'repository=https://void.chililinux.com/voidlinux/current'
+          echo 'repository=https://void.chililinux.com/voidlinux/extra'
+          echo
+          echo 'repository=https://void.voidlinux.com.br/voidlinux/current'
+          echo 'repository=https://void.voidlinux.com.br/voidlinux/extra'
+          echo 'repository=https://void.voidlinux.com.br/voidlinux/current/nonfree'
+          echo 'repository=https://void.voidlinux.com.br/voidlinux/current/multilib'
           echo
           } > /etc/xbps.d/00-repository-main.conf
 

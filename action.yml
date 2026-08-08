@@ -123,38 +123,38 @@ runs:
           } > /etc/xbps.d/00-repository-main.conf
 
           xbps-install -Syu xbps
-          xbps-install -yu --ignore-file-conflicts \
-            bash \
-            xtools \
-            sudo \
-            openssh \
-            tmate \
-            xz \
-            zip \
-            p7zip \
-            jq \
-            github-cli \
-            kmod \
-            which \
-            vpm \
-            libstdc++ \
-            nano \
-            curl \
-            git \
-            bash \
-            tree \
-            duf \
-            gettext \
-            rsync \
-            util-linux \
-            coreutils \
-            sed \
-            grep \
-            btrfs-progs \
-            e2fsprogs \
-            exfatprogs \
-            dosfstools \
-            xfsprogs
+          #xbps-install -yu --ignore-file-conflicts \
+          #  bash \
+          #  xtools \
+          #  sudo \
+          #  openssh \
+          #  tmate \
+          #  xz \
+          #  zip \
+          #  p7zip \
+          #  jq \
+          #  github-cli \
+          #  kmod \
+          #  which \
+          #  vpm \
+          #  libstdc++ \
+          #  nano \
+          #  curl \
+          #  git \
+          #  bash \
+          #  tree \
+          #  duf \
+          #  gettext \
+          #  rsync \
+          #  util-linux \
+          #  coreutils \
+          #  sed \
+          #  grep \
+          #  btrfs-progs \
+          #  e2fsprogs \
+          #  exfatprogs \
+          #  dosfstools \
+          #  xfsprogs
           vinstall -Scc
           xbps-install -Syu ncurses
           replicate

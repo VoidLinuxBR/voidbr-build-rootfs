@@ -138,7 +138,7 @@ runs:
           } > /etc/xbps.d/00-repository-main.conf
 
           xbps-install -Syu xbps
-          #xbps-install -yu --ignore-file-conflicts \
+          xbps-install -yu --ignore-file-conflicts \
             tar \
             xz \
             chroot \
@@ -287,7 +287,7 @@ runs:
           replicate "#"
 
           pushd "$PROFILE_PATH" > /dev/null || true
-          #[[ ${{ inputs.tmate }} == 'true' ]] && ./mkrootfs --automatic -v || ./mkrootfs --automatic > /dev/null
+          #[[ ${{ inputs.tmate }} == 'true' ]] && ./mkrootfs --automatic -q || ./mkrootfs --automatic > /dev/null
           ./mkrootfs "${mkrootfs_args[@]}"
           popd > /dev/null
         }

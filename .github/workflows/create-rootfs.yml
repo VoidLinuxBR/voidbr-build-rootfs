@@ -1,6 +1,6 @@
 #  create-rootfs.yml
 #  Created: 2024/09/15 - 08:10
-#  Altered: ter 03 nov 2026 23:59:55 -04
+#  Altered: qua 04 nov 2026 00:06:50 -04
 #  Version: 1.3.6
 #
 #  Copyright (c) 2024-2026, Vilmar Catafesta <vcatafesta@gmail.com>
@@ -232,12 +232,15 @@ jobs:
           # titulo: "rootfs base-custom"
           tg_title() { printf 'rootfs %s' "$(html_escape "$edition")"; }
 
-          # linha 3: kernel e total de pacotes (so existem depois do build)
+          # linha 3: kernel e total de pacotes (so existem depois do build);
+          # REAL_KERNEL=na quando a rootfs nao tem o pacote linux
           tg_line3() {
-            if [[ -n $REAL_KERNEL ]]; then
-              printf '🐧 kernel %s · 🗃 %s pacotes' "$(html_escape "$REAL_KERNEL")" "${TOTAL_PACKAGES:-?}"
-            else
+            if [[ -z $REAL_KERNEL ]]; then
               printf '🐧 kernel e pacotes: aguardando o build'
+            elif [[ $REAL_KERNEL == na ]]; then
+              printf '🐧 sem kernel · 🗃 %s pacotes' "${TOTAL_PACKAGES:-?}"
+            else
+              printf '🐧 kernel %s · 🗃 %s pacotes' "$(html_escape "$REAL_KERNEL")" "${TOTAL_PACKAGES:-?}"
             fi
           }
 

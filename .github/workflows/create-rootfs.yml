@@ -1,6 +1,6 @@
 #  create-rootfs.yml
 #  Created: 2024/09/15 - 08:10
-#  Altered: qua 18 fev 2026 13:20:00 -04
+#  Altered: ter 03 nov 2026 23:59:55 -04
 #  Version: 1.3.6
 #
 #  Copyright (c) 2024-2026, Vilmar Catafesta <vcatafesta@gmail.com>
@@ -101,7 +101,7 @@ jobs:
 
       # Monta, em /tmp/send_telegram_message.sh, um script bash com funções
       # reutilizáveis (cores no terminal, helpers de log como msg/msg_ok/die,
-      # e as funções send_telegram_msg/send_telegram_message que fazem o
+      # e as funções send_telegram_msg/tg_notify que fazem o
       # POST de fato para a API do Telegram). Esse arquivo é depois subido
       # como artifact e "source"ado em vários steps/jobs seguintes.
       - name: Create Global Helpers Script - Definir a função send_telegram_message no script temporário
@@ -223,57 +223,114 @@ jobs:
           }
           export -f replicate
 
-          # send_telegram_msg: envia para o Telegram o texto exato passado
-          # (usado na notificação final, que já vem pronta em $MESSAGE).
-          function send_telegram_msg() {
-            local message="$1"
-            local parse_mode="$2"
+          # destino das notificacoes deste workflow
+          TG_TOKEN=$TELEGRAM_VOIDBR_ROOTFS_TOKEN_BOT
+          TG_CHAT=$CHAT_ID
+          TG_THREAD=$MESSAGE_THREAD_ID_ROOTFS
+          TG_TOTAL=2
 
-            # Remove as tags HTML e exibe o resultado no terminal
-            echo -e "${green}$(sed 's/<[^>]*>//g' <<< "$MESSAGE")${reset}"
-            # Envia a mensagem original com HTML para o Telegram
-            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_VOIDBR_ROOTFS_TOKEN_BOT}/sendMessage" \
-              -d chat_id="${CHAT_ID}" \
-              -d message_thread_id="${MESSAGE_THREAD_ID_ROOTFS}" \
-              -d text="${MESSAGE}" \
-              -d parse_mode="HTML"
+          # titulo: "rootfs base-custom"
+          tg_title() { printf 'rootfs %s' "$(html_escape "$edition")"; }
+
+          # linha 3: kernel e total de pacotes (so existem depois do build)
+          tg_line3() {
+            if [[ -n $REAL_KERNEL ]]; then
+              printf '🐧 kernel %s · 🗃 %s pacotes' "$(html_escape "$REAL_KERNEL")" "${TOTAL_PACKAGES:-?}"
+            else
+              printf '🐧 kernel e pacotes: aguardando o build'
+            fi
           }
-          export -f send_telegram_msg
 
-          # send_telegram_message: monta uma mensagem padrão (com job, link do
-          # workflow, quem disparou, edição, etc.) em volta do texto recebido
-          # e envia para o Telegram. Usada na notificação inicial ("iniciando").
-          function send_telegram_message() {
-            local message="$1"
-            local parse_mode="$2"
+          # ----------------------------------------------------------------
+          # Notificacoes Telegram - molde unico de 5 linhas (igual ao
+          # voidbr-build-package). Antes de usar defina TG_TOKEN, TG_CHAT,
+          # TG_THREAD, TG_TOTAL (total de etapas) e tg_title/tg_line3.
+          # ----------------------------------------------------------------
 
-            # Define parse_mode como "MarkdownV2" se não for especificado
-            [[ -z $parse_mode ]] && parse_mode="HTML"
-
-            link_action=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-            MESSAGE="${{ github.workflow }} - $message
-            <b>Job           :</b> <a href='${link_action}'>#${GITHUB_RUN_NUMBER}</a>
-            <b>Workflow file :</b> <a href='${wf_url}'>${wf_file}</a>
-            <b>Triggered     :</b> <code>${started_by_user}/${triggered_by_user}</code>
-            <b>Started       :</b> <code>${START_TIME}</code>
-            <b>Distroname    :</b> <code>${iso_distroname}</code>
-            <b>Edition       :</b> <code>${edition}</code>
-            <b>Kernel Host   :</b> <code>x86_64/${KERNEL_HOST}</code>
-            <b>Tmate         :</b> <code>${{ env.DEBUG }}</code>
-            <b>FileName      :</b> <code>${rootfs_name}</code>"
-
-            # Remove as tags HTML e exibe o resultado no terminal
-            echo -e "${green}$(sed 's/<[^>]*>//g' <<< "$MESSAGE")${reset}"
-            # Envia a mensagem original com HTML para o Telegram
-            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_VOIDBR_ROOTFS_TOKEN_BOT}/sendMessage" \
-              -d chat_id="${CHAT_ID}" \
-              -d message_thread_id="${MESSAGE_THREAD_ID_ROOTFS}" \
-              -d text="${MESSAGE}" \
-              -d parse_mode="HTML"
+          # escapa &, < e > para o parse_mode=HTML do Telegram
+          html_escape() {
+            local s=$1
+            # replacement entre aspas: no bash 5.2+ um & solto vira o texto casado
+            s=${s//&/"&amp;"} s=${s//</"&lt;"} s=${s//>/"&gt;"}
+            printf '%s' "$s"
           }
-          export -f send_telegram_message
+
+          # tempo decorrido desde o timestamp $1 (padrao: inicio do workflow, TG_START_TS)
+          fmt_duration() {
+            local t0=${1:-$TG_START_TS}
+            [[ -n $t0 ]] || { printf '?'; return; }
+            local s=$(( $(date +%s) - t0 ))
+            if (( s >= 3600 )); then
+              printf '%dh %02dm' $((s / 3600)) $((s % 3600 / 60))
+            elif (( s >= 60 )); then
+              printf '%dm %02ds' $((s / 60)) $((s % 60))
+            else
+              printf '%ds' "$s"
+            fi
+          }
+
+          # tamanho legivel de um arquivo
+          fmt_size() {
+            [[ -f $1 ]] || { printf '?'; return; }
+            numfmt --to=iec-i --suffix=B "$(stat -c %s "$1")" 2>/dev/null \
+              || du -h "$1" | cut -f1
+          }
+
+          # "👤 usuario · ⚙️ evento" (agendado nao tem usuario)
+          tg_origin() {
+            local user=${started_by_user:-$GITHUB_ACTOR}
+            case $GITHUB_EVENT_NAME in
+              schedule)            printf '⏰ agendado · ⚙️ cron' ;;
+              push)                printf '👤 <a href="https://github.com/%s">%s</a> · ⚙️ push' "$user" "$(html_escape "$user")" ;;
+              workflow_dispatch)   printf '👤 <a href="https://github.com/%s">%s</a> · ⚙️ manual' "$user" "$(html_escape "$user")" ;;
+              repository_dispatch) printf '👤 <a href="https://github.com/%s">%s</a> · ⚙️ dispatch' "$user" "$(html_escape "$user")" ;;
+              *)                   printf '👤 <a href="https://github.com/%s">%s</a> · ⚙️ %s' "$user" "$(html_escape "$user")" "$GITHUB_EVENT_NAME" ;;
+            esac
+          }
+
+          # send_telegram_msg <html> [botoes extras: ,{"text":..,"url":..}]
+          send_telegram_msg() {
+            local MESSAGE=$1 extra=$2
+            local run_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            local markup="{\"inline_keyboard\":[[{\"text\":\"🔗 Job #${GITHUB_RUN_NUMBER}\",\"url\":\"${run_url}\"}${extra}]]}"
+
+            echo -e "${green}$(sed 's/<[^>]*>//g' <<< "$MESSAGE")${reset}"
+            [[ -n $TG_TOKEN && -n $TG_CHAT ]] || return 0
+            curl -s -o /dev/null -w "telegram: %{http_code}\n" \
+              -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+              -d chat_id="$TG_CHAT" \
+              ${TG_THREAD:+-d message_thread_id="$TG_THREAD"} \
+              --data-urlencode text="$MESSAGE" \
+              --data-urlencode reply_markup="$markup" \
+              -d link_preview_options='{"is_disabled":true}' \
+              -d parse_mode="HTML" || true
+          }
+
+          # tg_notify <icone> <etapa> <status> <linha4> [botoes extras]
+          #   <icone> <titulo> · n/N · <status>
+          #   👤 usuario · ⚙️ evento
+          #   <linha 3 do workflow (tg_line3)>
+          #   <linha 4: artefato ou ⚠️ motivo>
+          #   🕒 inicio · ⏱ duracao [· 🐞 tmate]
+          tg_notify() {
+            local icon=$1 step=$2 status=$3 line4=$4 extra=$5
+            local time_line="🕒 ${TG_START_TIME} · ⏱ $(fmt_duration)"
+            [[ $DEBUG == true ]] && time_line+=" · 🐞 tmate"
+            send_telegram_msg "${icon} <b>$(tg_title)</b> · <code>${step}/${TG_TOTAL}</code> · ${status}
+          $(tg_origin)
+          $(tg_line3)
+          ${line4}
+          ${time_line}" "$extra"
+          }
           EOF
           chmod +x /tmp/send_telegram_message.sh
+
+          # inicio do workflow (fixo -04, nao depende de tzdata) gravado no
+          # proprio script, para valer tambem no job build (container)
+          {
+            echo "export TG_START_TIME='$(TZ='<-04>4' date +'%d/%m/%Y %H:%M')'"
+            echo "export TG_START_TS='$(date +%s)'"
+          } >> /tmp/send_telegram_message.sh
 
       # Avisa no Telegram que o workflow começou a rodar (mensagem "step 1/2").
       - name: Enviar notificação inicial para o Telegram
@@ -281,8 +338,7 @@ jobs:
         run: |
           source /tmp/send_telegram_message.sh
           msg "- name: Enviar notificação inicial para o Telegram"
-          MESSAGE="🚀 <b>[step 1/2] - INICIANDO WORKFLOW</b>"
-          send_telegram_message "${MESSAGE}"
+          tg_notify "🚀" 1 "Construindo" "📦 aguardando o mkrootfs"
 
       # Instala no runner Ubuntu (host) ferramentas usadas pelos steps
       # seguintes que ainda rodam fora do container Void (duf, tree, etc.).
@@ -494,6 +550,7 @@ jobs:
       # "current" por este build recém-gerado, e faz commit/push — é assim
       # que o instalador do VoidBR passa a distribuir a rootfs mais nova.
       - name: Atualizar repositório void-install
+        id: void_install
         shell: bash
         run: |
           git clone --depth=1 https://x-access-token:${{ secrets.ORGANIZATION_TOKEN }}@github.com/voidlinuxbr/void-install.git "${{ env.WORK_PATH }}/void-install"
@@ -517,52 +574,30 @@ jobs:
         env:
           D_URL: "https://github.com/${{ github.repository }}/releases/download/${{ github.run_id }}_zip/${{ env.XZ_BASENAME }}"
           P_URL: "https://github.com/${{ github.repository }}/releases/download/${{ github.run_id }}_zip/${{ env.PKG_LIST_FILE }}"
-          FILE_NAME: ${{ env.XZ_BASENAME }}
-          PKG_FILE: ${{ env.PKG_LIST_FILE }}
-          START_T: ${{ env.S_TIME_HUMAN }}
-          START_TS: ${{ env.S_TIMESTAMP }}
+          STATUS: ${{ job.status }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          RELEASE_OUTCOME: ${{ steps.create_gh_release.outcome }}
+          INSTALL_OUTCOME: ${{ steps.void_install.outcome }}
         run: |
           source /tmp/send_telegram_message.sh
           replicate
           msg 'Enviar notificação final para o Telegram'
-          END_TS=$(date +%s)
-          DURATION=$((END_TS - START_TS))
-          MIN=$((DURATION / 60))
-          SEC=$((DURATION % 60))
 
-          FILE_SIZE="N/A"
-          if [[ -f "${{ env.XZ_FULLNAME }}" ]]; then
-            FILE_SIZE=$(du -h "${{ env.XZ_FULLNAME }}" | cut -f1)
-          fi
-
-          STATUS="${{ job.status }}"
-          if [[ "$STATUS" == "success" ]]; then
-            EMOJI="✅"
-            TEXT_STATUS="CONCLUÍDO COM SUCESSO"
-            DOWNLOAD_LINK="<a href='${D_URL}'>${FILE_NAME}</a>"
-            PACKAGES_LINK="<a href='${P_URL}'>${PKG_FILE}</a>"
+          if [[ $STATUS == success ]]; then
+            name=${XZ_BASENAME%.tar.xz}
+            tg_notify "✅" 2 "Publicado" \
+              "📦 <code>$(html_escape "$name")</code> · $(fmt_size "$XZ_FULLNAME")" \
+              ",{\"text\":\"⬇️ Download\",\"url\":\"${D_URL}\"},{\"text\":\"📄 Pacotes\",\"url\":\"${P_URL}\"}"
           else
-            EMOJI="❌"
-            TEXT_STATUS="FALHOU"
-            DOWNLOAD_LINK="N/A"
-            PACKAGES_LINK="N/A"
+            if [[ $BUILD_OUTCOME == failure ]]; then
+              motivo="falha no mkrootfs (build da rootfs)"
+            elif [[ $RELEASE_OUTCOME == failure ]]; then
+              motivo="falha ao criar a release no GitHub"
+            elif [[ $INSTALL_OUTCOME == failure ]]; then
+              motivo="falha ao atualizar o void-install"
+            else
+              motivo="falha no workflow (veja o log)"
+            fi
+            tg_notify "❌" 2 "Falhou" "⚠️ ${motivo}"
           fi
-
-          link_action=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-          DISK_FREE=$(df -h / | awk 'NR==2 {print $4}')
-          MESSAGE="${{ github.workflow }} ${EMOJI} <b>[step 2/2] - ${TEXT_STATUS}</b>
-          <b>Job           :</b> <a href='${link_action}'>#${GITHUB_RUN_NUMBER}</a>
-          <b>Workflow file :</b> <a href='${wf_url}'>${wf_file}</a>
-          <b>Status        :</b> <code>${STATUS}</code>
-          <b>Started       :</b> <code>${START_T}</code>
-          <b>Triggered     :</b> <code>${started_by_user}/${triggered_by_user}</code>
-          <b>Edition       :</b> <code>${edition}</code>
-          <b>Kernel        :</b> <code>${{env.REAL_KERNEL}}</code>
-          <b>Duration      :</b> <code>${MIN}m ${SEC}s</code>
-          <b>Disk free     :</b> <code>${DISK_FREE}</code>
-          <b>MD5           :</b> <code>${{ env.MD5_VAL }}</code>
-          <b>Download      :</b> ${DOWNLOAD_LINK}
-          <b>Size          :</b> <code>${FILE_SIZE}</code>
-          <b>Packages      :</b> ${PACKAGES_LINK} (<code>${{ env.TOTAL_PACKAGES }}</code>)"
-          send_telegram_msg "$MESSAGE"
           replicate
